@@ -1,19 +1,14 @@
 using ElNino.Core.Entities;
 using ElNino.Core.Interfaces;
+using ElNino.Core.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ElNino.API.Controllers;
 
 /// <summary>
-/// Endpoints del dominio de Infraestructura. Esqueleto inicial: agregar casos de uso aquí.
-/// Ruta base: /api/infraestructura
+/// Endpoints del dominio de Infraestructura (vivienda, huaicos, inundaciones, evacuación).
+/// Ruta base: /api/infraestructura  (alertas y consejos vienen de DomainControllerBase)
 /// </summary>
-[ApiController]
 [Route("api/[controller]")]
-public class InfraestructuraController(IAlertRepository alerts) : ControllerBase
-{
-    /// <summary>Lista las alertas del dominio de Infraestructura.</summary>
-    [HttpGet("alertas")]
-    public async Task<IActionResult> GetAlertas(CancellationToken ct) =>
-        Ok(await alerts.GetByDomainAsync(AlertDomain.Infraestructura, ct));
-}
+public class InfraestructuraController(IAlertRepository alerts, IRepository<PreventionTip> tips, TipSearchService tipSearch)
+    : DomainControllerBase(AlertDomain.Infraestructura, alerts, tips, tipSearch);

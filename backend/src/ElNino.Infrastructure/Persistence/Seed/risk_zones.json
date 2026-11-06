@@ -1,0 +1,26 @@
+[
+  {
+    "name": "[EJEMPLO] Cauce de quebrada – Chosica",
+    "ubigeo": "150118", "zoneType": "Riesgo", "hazard": "Huaico",
+    "geoJson": "{\"type\":\"Polygon\",\"coordinates\":[[[-76.7000,-11.9270],[-76.6950,-11.9270],[-76.6920,-11.9330],[-76.6970,-11.9345],[-76.7000,-11.9270]]]}",
+    "source": "Zona de ejemplo para la demo – reemplazar con datos de SIGRID / CENEPRED"
+  },
+  {
+    "name": "[EJEMPLO] Zona segura – parte alta Chosica",
+    "ubigeo": "150118", "zoneType": "Segura", "hazard": "Huaico",
+    "geoJson": "{\"type\":\"Polygon\",\"coordinates\":[[[-76.6905,-11.9390],[-76.6870,-11.9390],[-76.6870,-11.9415],[-76.6905,-11.9415],[-76.6905,-11.9390]]]}",
+    "source": "Zona de ejemplo para la demo – reemplazar con datos de SIGRID / CENEPRED"
+  },
+  {
+    "name": "[EJEMPLO] Riberas del río Piura",
+    "ubigeo": "200101", "zoneType": "Riesgo", "hazard": "Inundacion",
+    "geoJson": "{\"type\":\"Polygon\",\"coordinates\":[[[-80.6280,-5.1800],[-80.6200,-5.1800],[-80.6180,-5.2000],[-80.6260,-5.2000],[-80.6280,-5.1800]]]}",
+    "source": "Zona de ejemplo para la demo – reemplazar con datos de SIGRID / CENEPRED"
+  },
+  {
+    "name": "[EJEMPLO] Zona segura – Piura centro",
+    "ubigeo": "200101", "zoneType": "Segura", "hazard": "Inundacion",
+    "geoJson": "{\"type\":\"Polygon\",\"coordinates\":[[[-80.6400,-5.1950],[-80.6340,-5.1950],[-80.6340,-5.2000],[-80.6400,-5.2000],[-80.6400,-5.1950]]]}",
+    "source": "Zona de ejemplo para la demo – reemplazar con datos de SIGRID / CENEPRED"
+  }
+]

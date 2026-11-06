@@ -1,0 +1,69 @@
+[
+  {
+    "institution": "ENFEN",
+    "number": "19-2026",
+    "title": "Comunicado Oficial ENFEN N.° 19-2026",
+    "publishedAt": "2026-10-30",
+    "alertStatus": "Alerta de El Niño Costero",
+    "summary": "El Niño Costero mantendría magnitud extraordinaria hasta febrero de 2027 y luego bajaría de forma gradual hasta junio de 2027. Se esperan lluvias sobre lo normal en la costa norte, la costa central y la sierra occidental, y temperaturas del aire muy superiores a lo habitual en toda la costa.",
+    "keyPoints": [
+      "Noviembre 2026 a enero 2027: lluvias sobre lo normal en la costa norte, costa central, sierra occidental y sierra central occidental, con episodios de intensidad moderada a fuerte",
+      "Verano 2027: lluvias sobre lo normal en la costa norte, costa central y sierra norte occidental, más frecuentes e intensas en el norte",
+      "Sierra suroriental, centro-oriental y parte de la Amazonía: lluvias normales o por debajo; mayor déficit en la zona del lago Titicaca",
+      "Subirían los caudales de los ríos Tumbes, Chira, Piura, La Leche y Jequetepeque; desde diciembre también en la costa central (Chillón, Rímac y Lurín)",
+      "Temperaturas del aire muy superiores a las habituales en toda la costa; nivel del mar por encima de lo normal",
+      "Seguir los Avisos Especiales de Oleaje de la Marina de Guerra y vigilar zonas vulnerables a inundaciones y movimientos en masa"
+    ],
+    "regions": [],
+    "url": "https://enfen.imarpe.gob.pe/download/comunicado-oficial-enfen-n-19-2026/",
+    "nextExpectedAt": "2026-11-13"
+  },
+  {
+    "institution": "ENFEN",
+    "number": "18-2026",
+    "title": "Comunicado Oficial ENFEN N.° 18-2026",
+    "publishedAt": "2026-10-16",
+    "alertStatus": "Alerta de El Niño Costero",
+    "summary": "El calentamiento del mar frente a la costa peruana (región Niño 1+2) mantendría magnitud extraordinaria hasta enero de 2027 y bajaría a fuerte hacia el inicio del otoño de 2027.",
+    "keyPoints": [
+      "En el Pacífico central (región Niño 3.4) la magnitud sería muy fuerte hasta febrero de 2027",
+      "Caudales de normales a superiores en Ica; de normales a inferiores en Arequipa, Moquegua y Tacna",
+      "Ante un posible déficit de lluvias en la sierra centro y sur, podría haber racionamientos de agua"
+    ],
+    "regions": [],
+    "url": "https://enfen.imarpe.gob.pe/download/comunicado-oficial-enfen-n-18-2026/",
+    "nextExpectedAt": null
+  },
+  {
+    "institution": "ENFEN",
+    "number": "17-2026",
+    "title": "Comunicado Oficial ENFEN N.° 17-2026",
+    "publishedAt": "2026-09-28",
+    "alertStatus": "Alerta de El Niño Costero",
+    "summary": "El Niño Costero (región Niño 1+2) se mantendría con magnitud extraordinaria.",
+    "keyPoints": [
+      "Se recomienda a los tomadores de decisiones usar escenarios de riesgo actualizados según los avisos meteorológicos y los pronósticos estacionales"
+    ],
+    "regions": [],
+    "url": "https://enfen.imarpe.gob.pe/download/comunicado-oficial-enfen-n-17-2026/",
+    "nextExpectedAt": null
+  },
+  {
+    "institution": "MINSA",
+    "number": "AE-008-2026",
+    "title": "Alerta epidemiológica N.° 008-2026: riesgo de enfermedades asociadas a El Niño 2026-2027",
+    "publishedAt": "2026-10-20",
+    "alertStatus": "Alerta epidemiológica",
+    "summary": "El Minsa alerta por el riesgo de dengue, enfermedades diarreicas y leptospirosis por lluvias intensas, inundaciones y dificultades para acceder a agua segura durante El Niño 2026-2027.",
+    "keyPoints": [
+      "Eliminar el agua acumulada en recipientes y tapar los depósitos de agua",
+      "Consumir agua potable o desinfectada y guardarla en recipientes limpios y tapados",
+      "Evitar el contacto con aguas de inundación; si no se puede, usar botas y guantes",
+      "Tener las vacunas al día y, en zonas priorizadas, completar la vacuna contra el dengue",
+      "Acudir al establecimiento de salud ante fiebre, diarrea persistente o dificultad para respirar; no automedicarse"
+    ],
+    "regions": [],
+    "url": "https://elperuano.pe/noticia/307223-minsa-lanza-alerta-epidemiologica-por-riesgo-de-enfermedades-asociadas-al-fen",
+    "nextExpectedAt": null
+  }
+]
