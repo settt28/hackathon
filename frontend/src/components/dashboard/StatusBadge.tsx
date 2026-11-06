@@ -49,14 +49,14 @@ const StatusBadge: FC<StatusBadgeProps> = ({ zoneLabel, message, tone }) => {
   const t = TONES[tone]
   return (
     <section className="mt-3 flex flex-col items-center" aria-live="polite">
-      <div className="relative flex h-[120px] w-[120px] items-center justify-center">
+      <div className="relative flex h-[120px] w-[120px] items-center justify-center @5xl:h-[160px] @5xl:w-[160px]">
         {/* Anillo punteado exterior + onda pulsante */}
         <span className={clsx('absolute inset-0 rounded-full border border-dashed', t.ring)} aria-hidden />
         <span className={clsx('absolute inset-5 rounded-full border motion-safe:animate-pulse-ring', t.pulse)} aria-hidden />
 
         {/* Disco central con borde grueso y brillo del color del riesgo */}
-        <div className={clsx('relative flex h-20 w-20 items-center justify-center rounded-full border-4 bg-white', t.disc)}>
-          <svg viewBox="0 0 52 52" className="h-[52px] w-[52px]" aria-hidden>
+        <div className={clsx('relative flex h-20 w-20 items-center justify-center rounded-full border-4 bg-white @5xl:h-28 @5xl:w-28', t.disc)}>
+          <svg viewBox="0 0 52 52" className="h-[52px] w-[52px] @5xl:h-[72px] @5xl:w-[72px]" aria-hidden>
             <circle cx="26" cy="26" r="26" className="fill-amber-300 dark:fill-yellow-400" />
             <g className="fill-amber-800 stroke-amber-800 dark:fill-[#0b1f1c] dark:stroke-[#0b1f1c]">
               <ellipse cx="18.5" cy="20" rx="2.6" ry="3.4" stroke="none" />
@@ -66,12 +66,12 @@ const StatusBadge: FC<StatusBadgeProps> = ({ zoneLabel, message, tone }) => {
           </svg>
         </div>
 
-        <span className={clsx('absolute -bottom-3 whitespace-nowrap rounded-full border px-5 py-1 text-xs font-extrabold tracking-[0.14em]', t.badge)}>
+        <span className={clsx('absolute -bottom-3 whitespace-nowrap rounded-full border px-5 py-1 text-xs font-extrabold tracking-[0.14em] @5xl:-bottom-4 @5xl:px-6 @5xl:py-1.5 @5xl:text-sm', t.badge)}>
           {zoneLabel}
         </span>
       </div>
 
-      <h2 className="mt-5 px-4 text-center text-xl font-extrabold text-slate-900 dark:text-white">{message}</h2>
+      <h2 className="mt-5 px-4 text-center text-xl font-extrabold text-slate-900 dark:text-white @5xl:mt-8 @5xl:text-3xl">{message}</h2>
     </section>
   )
 }

@@ -7,7 +7,9 @@ export type ChatMessage =
   | { id: string; role: 'user'; text: string; voice?: boolean }
   | { id: string; role: 'paty'; text: string; data?: PatyReply; error?: boolean }
 
-const id = () => crypto.randomUUID()
+// crypto.randomUUID solo existe con HTTPS: en un WebView o red local por http:// el chat se rompía al enviar
+let seq = 0
+const id = () => (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `m${Date.now()}-${++seq}`)
 
 /** Estado de la conversación con Paty: mensajes de texto o voz, envío y cancelación al salir de la vista. */
 export function usePatyChat() {

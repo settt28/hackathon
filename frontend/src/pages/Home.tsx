@@ -86,7 +86,8 @@ export default function Home() {
         </p>
       </section>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* A 2 columnas, la tercera tarjeta ocupa toda la fila en vez de quedar sola a media fila */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:[&>*:last-child:nth-child(odd)]:col-span-2 lg:grid-cols-3 lg:[&>*:last-child:nth-child(odd)]:col-span-1">
         <DomainSummary dominio="salud" title="Salud" icon={HeartIcon} iconClassName="bg-rose-50 dark:bg-rose-400/10 text-rose-600" to="/salud" />
         <DomainSummary dominio="agricultura" title="Agro" icon={LeafIcon} iconClassName="bg-emerald-50 dark:bg-emerald-400/10 text-emerald-600" to="/agro" />
         <DomainSummary

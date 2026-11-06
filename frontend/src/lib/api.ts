@@ -3,6 +3,8 @@
  * En desarrollo, Vite redirige /api al backend (ver vite.config.ts), así no hay URLs fijas ni CORS.
  * En producción se define VITE_API_URL (ej. https://api.midominio.pe) si el backend vive en otro origen.
  */
+import { MAP_RADIUS_KM } from './riskGeo'
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
 export class ApiError extends Error {
@@ -13,16 +15,38 @@ export class ApiError extends Error {
   }
 }
 
+// AbortSignal.timeout/any no existen en WebViews de Android antiguos (< Chrome 116): respaldo equivalente
+function timeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms)
+  const ctrl = new AbortController()
+  setTimeout(() => ctrl.abort(new DOMException('Tiempo agotado', 'TimeoutError')), ms)
+  return ctrl.signal
+}
+
+function withTimeout(signal: AbortSignal | null | undefined, ms: number): AbortSignal {
+  const timeout = timeoutSignal(ms)
+  if (!signal) return timeout
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any([signal, timeout])
+  const ctrl = new AbortController()
+  for (const s of [signal, timeout]) {
+    if (s.aborted) {
+      ctrl.abort(s.reason)
+      break
+    }
+    s.addEventListener('abort', () => ctrl.abort(s.reason), { once: true })
+  }
+  return ctrl.signal
+}
+
 export async function api<T>(path: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
   const { timeoutMs = 15000, signal, ...rest } = init
-  // Corta peticiones colgadas (redes 2G/3G) y respeta la cancelación del llamador
-  const timeout = AbortSignal.timeout(timeoutMs)
   let res: Response
   try {
     res = await fetch(BASE_URL + path, {
       ...rest,
       headers: { 'Content-Type': 'application/json', ...rest.headers },
-      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+      // Corta peticiones colgadas (redes 2G/3G) y respeta la cancelación del llamador
+      signal: withTimeout(signal, timeoutMs),
     })
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e
@@ -36,6 +60,36 @@ export async function api<T>(path: string, init: RequestInit & { timeoutMs?: num
   }
   return res.json() as Promise<T>
 }
+
+/**
+ * GET con caché en memoria: las pantallas que piden lo mismo (Inicio y cada módulo) comparten una sola petición
+ * y al volver a una pantalla los datos aparecen al instante. Si la petición falla no se guarda, así "Reintentar"
+ * vuelve a pedirla. Cancelar desde un componente solo lo desconecta a él; la petición compartida sigue.
+ */
+const getCache = new Map<string, { at: number; data: Promise<unknown> }>()
+
+function cachedGet<T>(path: string, ttlMs: number, signal?: AbortSignal): Promise<T> {
+  let entry = getCache.get(path)
+  if (!entry || Date.now() - entry.at > ttlMs) {
+    const created: { at: number; data: Promise<unknown> } = { at: Date.now(), data: Promise.resolve() }
+    created.data = api<T>(path).catch((e) => {
+      if (getCache.get(path) === created) getCache.delete(path)
+      throw e
+    })
+    getCache.set(path, created)
+    entry = created
+  }
+  const data = entry.data as Promise<T>
+  if (!signal) return data
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new DOMException('Cancelado', 'AbortError'))
+    if (signal.aborted) return onAbort()
+    signal.addEventListener('abort', onAbort, { once: true })
+    data.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort))
+  })
+}
+
+const MINUTE = 60_000
 
 // ---- Tipos del contrato con el backend (ElNino.Core/Models/ServiceModels.cs) ----
 
@@ -121,11 +175,12 @@ export interface UserLocation {
   distanceKm: number | null
 }
 
+// Las alertas cambian durante el día: se reutilizan 1 minuto. Los consejos son fijos: 10 minutos.
 export const getAlertas = (dominio: Dominio, signal?: AbortSignal) =>
-  api<Alert[]>(`/api/${dominio}/alertas`, { signal })
+  cachedGet<Alert[]>(`/api/${dominio}/alertas`, MINUTE, signal)
 
 export const getConsejos = (dominio: Dominio, signal?: AbortSignal) =>
-  api<PreventionTip[]>(`/api/${dominio}/consejos`, { signal })
+  cachedGet<PreventionTip[]>(`/api/${dominio}/consejos`, 10 * MINUTE, signal)
 
 export const getUbicacion = (lat: number, lon: number) =>
   api<UserLocation>(`/api/ubicacion?lat=${lat}&lon=${lon}`)
@@ -161,7 +216,7 @@ export interface RiskMap {
 }
 
 export const getMapaRiesgo = (lat: number, lon: number, signal?: AbortSignal) =>
-  api<RiskMap>(`/api/mapa/riesgo?lat=${lat}&lon=${lon}&radioKm=15`, { signal, timeoutMs: 30000 })
+  api<RiskMap>(`/api/mapa/riesgo?lat=${lat}&lon=${lon}&radioKm=${MAP_RADIUS_KM}`, { signal, timeoutMs: 30000 })
 
 // ---- Voz e IA (PatyController: /capacidades, /voz, /tts) ----
 
@@ -190,7 +245,7 @@ export async function sendPatyVoice(audio: Blob, coords: { latitude: number; lon
     form.append('lat', String(coords.latitude))
     form.append('lon', String(coords.longitude))
   }
-  const res = await fetch(BASE_URL + '/api/paty/voz', { method: 'POST', body: form, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(45000)]) : AbortSignal.timeout(45000) })
+  const res = await fetch(BASE_URL + '/api/paty/voz', { method: 'POST', body: form, signal: withTimeout(signal, 45000) })
   if (!res.ok) throw new ApiError((await res.text().catch(() => '')) || `Error del servidor (${res.status}).`, res.status)
   return res.json() as Promise<{ transcripcion: string; respuesta: PatyReply }>
 }
@@ -201,7 +256,7 @@ export async function getTtsAudio(texto: string): Promise<Blob | null> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ texto }),
-    signal: AbortSignal.timeout(30000),
+    signal: timeoutSignal(30000),
   }).catch(() => null)
   return res?.ok ? res.blob() : null
 }
@@ -252,4 +307,4 @@ export interface NationalStats {
 }
 
 export const getEstadisticas = (anios = 5, signal?: AbortSignal) =>
-  api<NationalStats>(`/api/estadisticas?anios=${anios}`, { signal })
+  cachedGet<NationalStats>(`/api/estadisticas?anios=${anios}`, 10 * MINUTE, signal)

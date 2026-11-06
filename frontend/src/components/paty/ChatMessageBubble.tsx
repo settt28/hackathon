@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { MapPin, Phone, Sparkles, Square, TriangleAlert, Volume2 } from 'lucide-react'
 import type { ChatMessage } from '../../hooks/usePatyChat'
 import { speak, stopSpeaking } from '../../lib/speech'
@@ -28,8 +28,11 @@ function SpeakButton({ text }: { text: string }) {
   )
 }
 
-/** Burbuja de un mensaje. Las de Paty muestran además llamadas de emergencia, avisos, postas y fuentes. */
-export default function ChatMessageBubble({ message }: { message: ChatMessage }) {
+/**
+ * Burbuja de un mensaje. Las de Paty muestran además llamadas de emergencia, avisos, postas y fuentes.
+ * Memorizada: escribir en el campo de texto no vuelve a dibujar toda la conversación.
+ */
+export default memo(function ChatMessageBubble({ message }: { message: ChatMessage }) {
   if (message.role === 'user') {
     return (
       <li className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-sky-600 px-4 py-2.5 text-[15px] text-white dark:bg-cyan-400 dark:text-[#070d17]">
@@ -140,4 +143,4 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
       )}
     </li>
   )
-}
+})

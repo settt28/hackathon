@@ -65,6 +65,7 @@ export function useAlertas(dominio: Dominio) {
     const ctrl = new AbortController()
     getAlertas(dominio, ctrl.signal)
       .then((data) => {
+        if (ctrl.signal.aborted) return
         setAlertas([...data].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]))
         setStatus('ok')
       })

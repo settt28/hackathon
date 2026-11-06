@@ -1,3 +1,5 @@
+import containerQueries from '@tailwindcss/container-queries'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   // Archivos donde Tailwind busca clases para generar el CSS final
@@ -40,5 +42,7 @@ export default {
       },
     },
   },
-  plugins: [],
+  // Container queries (@3xl:, @5xl:…): las pantallas se adaptan al ancho de la app, no al de la ventana.
+  // Así el diseño de tablet/PC funciona a pantalla completa y la "vista teléfono" sigue viéndose como móvil.
+  plugins: [containerQueries],
 }
