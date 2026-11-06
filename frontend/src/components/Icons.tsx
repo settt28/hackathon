@@ -34,14 +34,5 @@ export const AlertIcon = ({ className = 'h-6 w-6' }: IconProps) => (
   <svg {...base} className={className}><path d="M12 3 2 20h20L12 3zM12 10v4M12 17h.01" /></svg>
 )
 
-export const ChatIcon = ({ className = 'h-6 w-6' }: IconProps) => (
-  <svg {...base} className={className}><path d="M4 5h16v11H8l-4 4z" /></svg>
-)
 
-export const CloseIcon = ({ className = 'h-6 w-6' }: IconProps) => (
-  <svg {...base} className={className}><path d="M6 6l12 12M18 6 6 18" /></svg>
-)
 
-export const SendIcon = ({ className = 'h-5 w-5' }: IconProps) => (
-  <svg {...base} className={className}><path d="M4 12 20 4l-6 16-3-7z" /></svg>
-)

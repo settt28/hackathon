@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import Salud from './pages/Salud'
 import Agro from './pages/Agro'
 import Infraestructura from './pages/Infraestructura'
+import PatyChatView from './pages/PatyChatView'
 
 /**
  * Rutas de la aplicación. Todas las vistas se renderizan dentro de MainLayout,
@@ -18,6 +19,8 @@ export default function App() {
         <Route path="agro" element={<Agro />} />
         <Route path="infraestructura" element={<Infraestructura />} />
       </Route>
+      {/* Chat de Paty a pantalla completa, fuera del layout (sin sidebar ni bottom bar) */}
+      <Route path="paty" element={<PatyChatView />} />
     </Routes>
   )
 }
