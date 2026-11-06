@@ -144,6 +144,8 @@ export interface RiskDistrict {
     color: string
     esTuDistrito: boolean
     peligroPrincipal?: string | null
+    probabilidadModelo?: number | null
+    emergenciasDesde2010?: number
     razones: string[]
   }
 }

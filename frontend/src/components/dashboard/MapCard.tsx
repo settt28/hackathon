@@ -1,8 +1,8 @@
 import { useMemo, useState, type FC } from 'react'
-import { MapPin, Minus, Navigation2, Plus, RefreshCcw, X } from 'lucide-react'
+import { ChevronRight, MapPin, Maximize2, Minus, Navigation2, Plus, RefreshCcw } from 'lucide-react'
 import clsx from 'clsx'
-import type { RiskDistrict, RiskMap } from '../../lib/api'
 import type { RiskMapState } from '../../hooks/useRiskMap'
+import { projectRiskMap } from '../../lib/riskGeo'
 
 const MIN_ZOOM = 1
 const MAX_ZOOM = 3
@@ -10,48 +10,18 @@ const MAX_ZOOM = 3
 const zoomButton =
   'flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-sky-300 hover:text-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 disabled:opacity-40 dark:border-white/15 dark:bg-[#0d1828]/90 dark:text-white dark:shadow-none dark:hover:border-cyan-400/50 dark:hover:text-cyan-300 dark:focus-visible:ring-cyan-400'
 
-/** Polígonos de cada distrito, sin importar si vienen como Polygon o MultiPolygon. */
-const polygonsOf = (f: RiskDistrict) => (f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates)
-
-/**
- * Proyección equirectangular corregida por la latitud, con origen en el usuario: a la escala de unos
- * pocos distritos es indistinguible de la de un mapa web y no necesita librerías.
- * El viewBox queda centrado en el usuario, así el marcador fijo en el centro de la tarjeta cae sobre su posición.
- */
-function project(map: RiskMap) {
-  const [lon0, lat0] = map.centro
-  const k = Math.cos((lat0 * Math.PI) / 180)
-  const x = (lon: number) => (lon - lon0) * k
-  const y = (lat: number) => lat0 - lat
-  const all = map.features.flatMap((f) => polygonsOf(f).flat(2))
-  const hw = Math.max(...all.map((p) => Math.abs(x(p[0]))))
-  const hh = Math.max(...all.map((p) => Math.abs(y(p[1]))))
-  const pt = ([lon, lat]: [number, number]) => `${x(lon).toFixed(5)},${y(lat).toFixed(5)}`
-
-  return {
-    viewBox: `${-hw} ${-hh} ${2 * hw} ${2 * hh}`,
-    paths: map.features.map((f) => ({
-      f,
-      d: polygonsOf(f)
-        .flatMap((poly) => poly.map((ring) => `M${ring.map(pt).join('L')}Z`))
-        .join(''),
-    })),
-  }
-}
-
 /**
  * Tarjeta de ubicación en vivo: distritos alrededor del usuario coloreados por nivel de riesgo estimado.
+ * Tocar el mapa (o el botón de expandir) abre el detalle a pantalla completa (RiskMapSheet).
  * En modo oscuro es translúcida para dejar ver la silueta del Perú del fondo.
  */
-const MapCard: FC<{ state: RiskMapState; retry: () => void }> = ({ state, retry }) => {
+const MapCard: FC<{ state: RiskMapState; retry: () => void; onExpand: () => void }> = ({ state, retry, onExpand }) => {
   const [zoom, setZoom] = useState(1)
-  const [selected, setSelected] = useState<RiskDistrict | null>(null)
   const changeZoom = (delta: number) => setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z + delta)))
 
   const map = state.kind === 'ok' ? state.map : null
-  const geo = useMemo(() => (map && map.features.length ? project(map) : null), [map])
+  const geo = useMemo(() => (map && map.features.length ? projectRiskMap(map) : null), [map])
   const mine = map?.features.find((f) => f.properties.esTuDistrito) ?? null
-  const shown = selected ?? mine
 
   return (
     <section
@@ -65,8 +35,9 @@ const MapCard: FC<{ state: RiskMapState; retry: () => void }> = ({ state, retry 
         <svg
           viewBox={geo.viewBox}
           preserveAspectRatio="xMidYMid slice"
-          className="absolute inset-0 h-full w-full transition-transform duration-300"
+          className="absolute inset-0 h-full w-full cursor-zoom-in transition-transform duration-300"
           style={{ transform: `scale(${zoom})` }}
+          onClick={onExpand}
           role="img"
           aria-label={`Distritos cercanos coloreados por nivel de riesgo${mine ? `. Tu distrito, ${mine.properties.nombre}: riesgo ${mine.properties.nivel}` : ''}`}
         >
@@ -75,12 +46,11 @@ const MapCard: FC<{ state: RiskMapState; retry: () => void }> = ({ state, retry 
               key={f.properties.ubigeo}
               d={d}
               fill={f.properties.color}
-              fillOpacity={f === shown ? 0.6 : 0.32}
+              fillOpacity={f.properties.esTuDistrito ? 0.6 : 0.32}
               stroke={f.properties.esTuDistrito ? 'currentColor' : f.properties.color}
-              strokeWidth={f.properties.esTuDistrito || f === selected ? 2.5 : 1}
+              strokeWidth={f.properties.esTuDistrito ? 2.5 : 1}
               vectorEffect="non-scaling-stroke"
-              className="cursor-pointer text-slate-900 transition-[fill-opacity] dark:text-white"
-              onClick={() => setSelected((s) => (s === f ? null : f))}
+              className="text-slate-900 dark:text-white"
             >
               <title>{`${f.properties.nombre}: riesgo ${f.properties.nivel}`}</title>
             </path>
@@ -150,6 +120,19 @@ const MapCard: FC<{ state: RiskMapState; retry: () => void }> = ({ state, retry 
             <button type="button" aria-label="Alejar mapa" onClick={() => changeZoom(-0.5)} disabled={zoom <= MIN_ZOOM} className={zoomButton}>
               <Minus className="h-4 w-4" />
             </button>
+            {zoom !== 1 && (
+              <button type="button" aria-label="Centrar mapa" onClick={() => setZoom(1)} className={zoomButton}>
+                <RefreshCcw className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label="Ver mapa de riesgo en pantalla completa"
+              onClick={onExpand}
+              className={clsx(zoomButton, '!border-cyan-400/50 !text-cyan-600 dark:!text-cyan-300')}
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </button>
           </div>
 
           {/* Leyenda */}
@@ -162,33 +145,22 @@ const MapCard: FC<{ state: RiskMapState; retry: () => void }> = ({ state, retry 
             ))}
           </ul>
 
-          {/* Detalle del distrito tocado (o el propio): por qué tiene ese nivel */}
-          <div className="absolute inset-x-3 bottom-3 flex items-start gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2.5 text-[11px] shadow-sm backdrop-blur dark:border-cyan-400/20 dark:bg-[#0d1828]/90">
-            {shown ? (
-              <div className="min-w-0 flex-1">
-                <p className="font-bold text-slate-900 dark:text-white">
-                  {shown.properties.nombre}
-                  {shown.properties.peligroPrincipal && (
-                    <span className="font-normal text-slate-500 dark:text-slate-400"> · peligro principal: {shown.properties.peligroPrincipal}</span>
-                  )}
-                </p>
-                <p className="mt-0.5 line-clamp-2 text-slate-600 dark:text-slate-300">{shown.properties.razones[0] ?? map!.aviso}</p>
-              </div>
-            ) : (
-              <p className="flex-1 text-slate-600 dark:text-slate-300">Toca un distrito para ver su nivel de riesgo.</p>
-            )}
-            {selected ? (
-              <button type="button" aria-label="Volver a mi distrito" onClick={() => setSelected(null)} className="shrink-0 rounded-full p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            ) : (
-              zoom !== 1 && (
-                <button type="button" aria-label="Centrar mapa" onClick={() => setZoom(1)} className={clsx(zoomButton, 'shrink-0')}>
-                  <RefreshCcw className="h-3.5 w-3.5" />
-                </button>
-              )
-            )}
-          </div>
+          {/* Resumen corto (siempre completo); el detalle con los motivos se abre a pantalla completa */}
+          <button
+            type="button"
+            onClick={onExpand}
+            className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2.5 text-left text-xs shadow-sm backdrop-blur transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:border-cyan-400/20 dark:bg-[#0d1828]/90 dark:hover:bg-[#0d1828]"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-bold text-slate-900 dark:text-white">
+                {mine ? `${mine.properties.nombre}: riesgo ${mine.properties.nivel} este mes` : 'Distritos cercanos'}
+              </span>
+              <span className="block truncate text-slate-500 dark:text-slate-400">
+                {mine?.properties.peligroPrincipal ? `Peligro principal: ${mine.properties.peligroPrincipal} · ` : ''}Toca para ver el detalle
+              </span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-sky-600 dark:text-cyan-300" aria-hidden />
+          </button>
         </>
       )}
     </section>

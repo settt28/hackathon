@@ -3,7 +3,7 @@ import ConnectionChip from './ConnectionChip'
 import ThemeToggle from './ThemeToggle'
 
 /**
- * Cabecera de marca: fila superior (conexión ↔ tema) y debajo el título "PATY SEGURA" centrado.
+ * Cabecera de marca: fila superior (conexión ↔ tema) y debajo el título "PATY" centrado.
  */
 const Header: FC = () => (
   <header className="flex flex-col items-center px-4 pt-2">
@@ -14,7 +14,7 @@ const Header: FC = () => (
     </div>
 
     <p className="mt-4 flex items-center gap-2.5 text-base font-extrabold tracking-[0.22em] text-slate-800 dark:text-cyan-300">
-      PATY SEGURA
+      PATY
       {/* Indicadores de servicio activo */}
       <span className="flex gap-1.5" aria-label="Servicio activo">
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse dark:bg-emerald-400" />
