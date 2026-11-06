@@ -17,7 +17,7 @@ namespace ElNino.Infrastructure;
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString,
-        DataImportOptions? importOptions = null)
+        DataImportOptions? importOptions = null, AiOptions? ai = null)
     {
         services.AddDbContext<AppDbContext>(o => o.UseSqlite(connectionString));
 
@@ -34,8 +34,22 @@ public static class DependencyInjection
         services.AddMemoryCache();
         services.AddSingleton<ISenamhiClient, SenamhiClient>();
 
-        // Sin IA conectada: Paty responde con plantillas. Reemplazar por una implementación real.
-        services.AddSingleton<IChatModel, NullChatModel>();
+        // IA y voz: cada pieza se activa sola si está configurada en "Ai"; si no, Paty sigue funcionando sin ella
+        ai ??= new AiOptions();
+        if (ai.Chat.IsConfigured)
+            services.AddSingleton<IChatModel>(sp => new OpenAiCompatibleChatModel(ai.Chat, sp.GetRequiredService<ILogger<OpenAiCompatibleChatModel>>()));
+        else
+            services.AddSingleton<IChatModel, NullChatModel>();
+
+        if (ai.Stt.IsConfigured)
+            services.AddSingleton<ISpeechToText>(sp => new WhisperSpeechToText(ai.Stt, sp.GetRequiredService<ILogger<WhisperSpeechToText>>()));
+        else
+            services.AddSingleton<ISpeechToText, NullSpeechToText>();
+
+        if (ai.Tts.IsConfigured)
+            services.AddSingleton<ITextToSpeech>(sp => new FishAudioTextToSpeech(ai.Tts, sp.GetRequiredService<ILogger<FishAudioTextToSpeech>>()));
+        else
+            services.AddSingleton<ITextToSpeech, NullTextToSpeech>();
         return services;
     }
 

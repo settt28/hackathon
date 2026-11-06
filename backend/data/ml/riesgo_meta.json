@@ -1,0 +1,47 @@
+{
+  "descripcion": "Probabilidad de al menos una emergencia (lluvias intensas, huaico, inundación o deslizamiento) en el distrito durante el mes.",
+  "fuente": "INDECI – SINPAD, emergencias por distrito desde 2010",
+  "datos_hasta": "2026-06-30",
+  "features": [
+    "mes",
+    "region",
+    "frac_anios_mes",
+    "frac_anios_mes_vecinos",
+    "eventos_por_anio",
+    "frac_anios_mes_dpto",
+    "nino_costero"
+  ],
+  "umbrales_nivel": [
+    0.0373,
+    0.1113,
+    0.2322
+  ],
+  "tasa_real_por_nivel": [
+    0.0275,
+    0.1683,
+    0.4004,
+    0.6765
+  ],
+  "episodios_nino_costero": [
+    [
+      "2015-04",
+      "2016-05"
+    ],
+    [
+      "2017-01",
+      "2017-05"
+    ],
+    [
+      "2023-03",
+      "2024-04"
+    ]
+  ],
+  "metricas_validacion": {
+    "auc": 0.8671,
+    "auc_linea_base": 0.8057,
+    "average_precision": 0.6015,
+    "brier": 0.1264,
+    "tasa_base_validacion": 0.1835,
+    "arboles": 187
+  }
+}

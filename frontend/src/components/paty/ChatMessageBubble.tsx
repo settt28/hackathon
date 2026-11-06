@@ -1,5 +1,31 @@
-import { MapPin, Phone, TriangleAlert } from 'lucide-react'
+import { useState } from 'react'
+import { MapPin, Phone, Sparkles, Square, TriangleAlert, Volume2 } from 'lucide-react'
 import type { ChatMessage } from '../../hooks/usePatyChat'
+import { speak, stopSpeaking } from '../../lib/speech'
+
+/** Lee la respuesta en voz alta (Fish Audio en el servidor o la voz del navegador, sin internet). */
+function SpeakButton({ text }: { text: string }) {
+  const [speaking, setSpeaking] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (speaking) {
+          stopSpeaking()
+          setSpeaking(false)
+        } else {
+          setSpeaking(true)
+          void speak(text, () => setSpeaking(false))
+        }
+      }}
+      aria-label={speaking ? 'Detener lectura' : 'Escuchar respuesta'}
+      className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:border-cyan-400/25 dark:text-cyan-300 dark:hover:bg-cyan-400/10"
+    >
+      {speaking ? <Square className="h-3 w-3 fill-current" aria-hidden /> : <Volume2 className="h-3.5 w-3.5" aria-hidden />}
+      {speaking ? 'Detener' : 'Escuchar'}
+    </button>
+  )
+}
 
 /** Burbuja de un mensaje. Las de Paty muestran además llamadas de emergencia, avisos, postas y fuentes. */
 export default function ChatMessageBubble({ message }: { message: ChatMessage }) {
@@ -29,6 +55,18 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
       }`}
     >
       <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p>
+
+      {!message.error && (
+        <div className="flex items-center gap-2">
+          <SpeakButton text={message.text} />
+          {d?.usedAi && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400" title="Redactado por el modelo de lenguaje con fuentes oficiales">
+              <Sparkles className="h-3 w-3" aria-hidden />
+              IA
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Llamadas: lo primero visible en una emergencia */}
       {calls.length > 0 && (

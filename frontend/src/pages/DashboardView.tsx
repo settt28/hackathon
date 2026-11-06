@@ -23,7 +23,7 @@ const DashboardView: FC = () => {
         <StatusBadge level={3} />
 
         <div className="mt-4 flex flex-col gap-3 px-4">
-          <MapCard address="Av. Paseo de la Reforma 222" gpsLabel="GPS Óptimo" />
+          <MapCard />
           <HistoryButton onClick={() => navigate('/resumen')} />
           <AssistantCard onOpenChat={() => navigate('/paty')} onVoice={() => navigate('/paty')} />
         </div>

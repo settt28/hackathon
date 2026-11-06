@@ -7,6 +7,7 @@ import PatyHero from '../components/paty/PatyHero'
 import SuggestionList from '../components/paty/SuggestionList'
 import { SUGGESTIONS } from '../components/paty/suggestions'
 import { usePatyChat } from '../hooks/usePatyChat'
+import { getCapacidades } from '../lib/api'
 import { getGreeting } from '../lib/greeting'
 
 interface PatyChatViewProps {
@@ -23,10 +24,20 @@ interface PatyChatViewProps {
 export default function PatyChatView({ userName }: PatyChatViewProps) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { messages, sending, send } = usePatyChat()
+  const { messages, sending, send, sendVoice } = usePatyChat()
+  const [canDictate, setCanDictate] = useState(false)
   const [draft, setDraft] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // El micrófono solo aparece si el servidor tiene dictado (Whisper) configurado
+  useEffect(() => {
+    let active = true
+    void getCapacidades().then((c) => active && setCanDictate(c.dictado))
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -80,7 +91,14 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
           <div ref={endRef} />
         </main>
 
-        <ChatInputBar value={draft} onChange={setDraft} onSubmit={submit} disabled={sending} inputRef={inputRef} />
+        <ChatInputBar
+          value={draft}
+          onChange={setDraft}
+          onSubmit={submit}
+          onVoice={canDictate ? (audio) => void sendVoice(audio) : undefined}
+          disabled={sending}
+          inputRef={inputRef}
+        />
       </div>
     </div>
   )

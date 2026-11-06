@@ -10,8 +10,8 @@ const RISK_STYLES: Record<RiskLevel, { label: string; className: string }> = {
   alto: { label: 'Riesgo alto', className: 'bg-red-100 text-red-700' },
   critico: { label: 'Riesgo crítico', className: 'bg-red-700 text-white' },
   // "Sin alertas" y "Sin datos" no son "riesgo bajo": no hay que afirmar seguridad que no se conoce
-  sinAlertas: { label: 'Sin alertas', className: 'bg-slate-100 text-slate-700' },
-  sinDatos: { label: 'Sin datos', className: 'bg-slate-100 text-slate-500' },
+  sinAlertas: { label: 'Sin alertas', className: 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200' },
+  sinDatos: { label: 'Sin datos', className: 'bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-400' },
 }
 
 type SummaryCardProps = {
@@ -35,7 +35,7 @@ export default function SummaryCard({ title, icon: Icon, iconClassName, risk, su
   const riskStyle = RISK_STYLES[risk]
 
   return (
-    <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <article className="flex flex-col rounded-2xl border border-slate-200 dark:border-cyan-400/15 bg-white dark:bg-[#0b1a26] p-5 shadow-sm">
       <div className="flex items-start gap-3">
         <span className={`rounded-xl p-2.5 ${iconClassName}`}>
           <Icon className="h-6 w-6" />
@@ -48,20 +48,20 @@ export default function SummaryCard({ title, icon: Icon, iconClassName, risk, su
         </div>
       </div>
 
-      <p className="mt-3 text-sm text-slate-600">{summary}</p>
+      <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{summary}</p>
 
-      {expanded && <div className="mt-3 border-t border-slate-100 pt-3 text-sm text-slate-600">{details}</div>}
+      {expanded && <div className="mt-3 border-t border-slate-100 dark:border-cyan-400/10 pt-3 text-sm text-slate-600 dark:text-slate-300">{details}</div>}
 
       <div className="mt-auto flex items-center justify-between pt-4">
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
           aria-expanded={expanded}
-          className="text-sm font-medium text-slate-500 hover:text-slate-800"
+          className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
         >
           {expanded ? 'Ver menos' : 'Ver más'}
         </button>
-        <Link to={to} className="text-sm font-semibold text-sky-700 hover:underline">
+        <Link to={to} className="text-sm font-semibold text-sky-700 dark:text-cyan-300 hover:underline">
           Ir al módulo →
         </Link>
       </div>

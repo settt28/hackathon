@@ -21,13 +21,14 @@ public class RiskMapService(
     IRepository<HistoricalEvent> events,
     IAlertRepository alerts,
     IRepository<Bulletin> bulletins,
-    WeatherService weather)
+    WeatherService weather,
+    RiskModelService riskModel)
 {
     public const int RefreshSeconds = 600;
     private const int MaxDistricts = 200;
 
     // Peligros asociados a El Niño que cuentan para el riesgo de la zona
-    private static readonly HazardType[] Hazards =
+    internal static readonly HazardType[] Hazards =
         [HazardType.Huaico, HazardType.Inundacion, HazardType.LluviaIntensa, HazardType.Deslizamiento];
 
     // Umbrales del puntaje histórico (suma de gravedades desde 2010: leve 1, moderado 2, fuerte 3).
@@ -65,6 +66,9 @@ public class RiskMapService(
             .GroupBy(e => e.Ubigeo)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        // 2b) Probabilidad del modelo XGBoost local para este mes (vacío si no hay modelo: se usan las reglas)
+        var predictions = await riskModel.PredictAsync(ubigeos, ct: ct);
+
         // 3) Alertas vigentes del operador, por distrito
         var activeAlerts = (await alerts.GetActiveAsync(null, null, ct))
             .Where(a => ubigeos.Contains(a.Ubigeo))
@@ -96,7 +100,17 @@ public class RiskMapService(
             var topMonths = evs.Where(e => e.DatePrecision != "anio")
                 .GroupBy(e => e.Date.Month).OrderByDescending(g => g.Count()).Take(2).Select(g => g.Key).ToList();
             var inSeason = evs.Count >= 3 && topMonths.Any(m => m == now.Month || m == now.AddMonths(1).Month);
-            if (inSeason && level >= 1)
+            predictions.TryGetValue(d.Ubigeo, out var prediction);
+            if (prediction is not null)
+            {
+                // El modelo ya aprende el historial y la estacionalidad: su nivel reemplaza a las dos reglas
+                level = prediction.Level;
+                var hit = riskModel.Model!.Meta["tasa_real_por_nivel"]?[level]?.GetValue<double>();
+                reasons.Insert(0, $"El modelo de IA local estima {prediction.Probability.ToString("P0", Es)} de probabilidad de emergencia este mes " +
+                                  "(XGBoost entrenado con el SINPAD" +
+                                  (hit is null ? ")." : $"; en sus pruebas, en este nivel hubo emergencia en el {hit.Value.ToString("P0", Es)} de los casos)."));
+            }
+            else if (inSeason && level >= 1)
             {
                 level++;
                 reasons.Add($"Estamos en temporada: aquí suele haber emergencias en {string.Join(" y ", topMonths.Select(m => Es.DateTimeFormat.GetMonthName(m).ToLowerInvariant()))}.");
@@ -172,6 +186,7 @@ public class RiskMapService(
                     ["emergenciasDesde2010"] = evs.Count,
                     ["puntajeHistorico"] = score,
                     ["enTemporada"] = inSeason,
+                    ["probabilidadModelo"] = prediction is null ? null : Math.Round(prediction.Probability, 3),
                     ["avisoSenamhi"] = warningJson,
                     ["alerta"] = alertJson,
                     ["razones"] = new JsonArray(reasons.Select(r => (JsonNode)JsonValue.Create(r)!).ToArray()),
@@ -192,7 +207,11 @@ public class RiskMapService(
             ["generadoEn"] = DateTime.UtcNow,
             ["actualizarCadaSegundos"] = RefreshSeconds,
             ["aviso"] = "Nivel de riesgo ESTIMADO a partir de datos oficiales (INDECI, SENAMHI); no es una predicción oficial.",
-            ["metodologia"] = "Historial INDECI-SINPAD desde 2010 ponderado por daño + temporada + avisos de lluvia del SENAMHI (si nombran el departamento: naranja +1, rojo +2; si solo nombran la región: rojo +1) + alertas vigentes como nivel mínimo.",
+            ["modeloIa"] = riskModel.Model?.Meta.DeepClone(),
+            ["metodologia"] = (riskModel.IsAvailable
+                    ? "Modelo XGBoost local (probabilidad de emergencia en el mes, entrenado con el SINPAD desde 2010)"
+                    : "Historial INDECI-SINPAD desde 2010 ponderado por daño + temporada") +
+                " + avisos de lluvia del SENAMHI (si nombran el departamento: naranja +1, rojo +2; si solo nombran la región: rojo +1) + alertas vigentes como nivel mínimo.",
         };
     }
 

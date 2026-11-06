@@ -129,3 +129,77 @@ export const getConsejos = (dominio: Dominio, signal?: AbortSignal) =>
 
 export const getUbicacion = (lat: number, lon: number) =>
   api<UserLocation>(`/api/ubicacion?lat=${lat}&lon=${lon}`)
+
+// ---- Mapa de riesgo (ElNino.API/Controllers/MapaController.cs → GET /api/mapa/riesgo) ----
+
+type Ring = [number, number][]
+
+export interface RiskDistrict {
+  type: 'Feature'
+  geometry: { type: 'Polygon'; coordinates: Ring[] } | { type: 'MultiPolygon'; coordinates: Ring[][] }
+  properties: {
+    ubigeo: string
+    nombre: string
+    nivel: 'bajo' | 'moderado' | 'alto' | 'muy alto'
+    color: string
+    esTuDistrito: boolean
+    peligroPrincipal?: string | null
+    razones: string[]
+  }
+}
+
+export interface RiskMap {
+  centro: [number, number]
+  tuDistrito: { ubigeo: string; nombre: string; departamento: string } | null
+  leyenda: { nivel: string; color: string }[]
+  estadoElNino?: string | null
+  aviso: string
+  actualizarCadaSegundos: number
+  features: RiskDistrict[]
+}
+
+export const getMapaRiesgo = (lat: number, lon: number, signal?: AbortSignal) =>
+  api<RiskMap>(`/api/mapa/riesgo?lat=${lat}&lon=${lon}&radioKm=15`, { signal, timeoutMs: 30000 })
+
+// ---- Voz e IA (PatyController: /capacidades, /voz, /tts) ----
+
+export interface Capacidades {
+  /** Modelo de lenguaje que responde, o null si Paty usa plantillas. */
+  ia: string | null
+  dictado: boolean
+  vozServidor: boolean
+}
+
+let capacidades: Promise<Capacidades> | null = null
+
+/** Qué piezas de IA están activas en el servidor (se consulta una vez; si falla, se reintenta luego). */
+export function getCapacidades(): Promise<Capacidades> {
+  capacidades ??= api<Capacidades>('/api/paty/capacidades', { timeoutMs: 8000 }).catch(() => {
+    capacidades = null
+    return { ia: null, dictado: false, vozServidor: false }
+  })
+  return capacidades
+}
+
+export async function sendPatyVoice(audio: Blob, coords: { latitude: number; longitude: number } | null, signal?: AbortSignal) {
+  const form = new FormData()
+  form.append('audio', audio, audio.type.includes('mp4') ? 'audio.mp4' : audio.type.includes('ogg') ? 'audio.ogg' : 'audio.webm')
+  if (coords) {
+    form.append('lat', String(coords.latitude))
+    form.append('lon', String(coords.longitude))
+  }
+  const res = await fetch(BASE_URL + '/api/paty/voz', { method: 'POST', body: form, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(45000)]) : AbortSignal.timeout(45000) })
+  if (!res.ok) throw new ApiError((await res.text().catch(() => '')) || `Error del servidor (${res.status}).`, res.status)
+  return res.json() as Promise<{ transcripcion: string; respuesta: PatyReply }>
+}
+
+/** MP3 generado por el servidor (Fish Audio), o null si no está disponible. */
+export async function getTtsAudio(texto: string): Promise<Blob | null> {
+  const res = await fetch(BASE_URL + '/api/paty/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ texto }),
+    signal: AbortSignal.timeout(30000),
+  }).catch(() => null)
+  return res?.ok ? res.blob() : null
+}

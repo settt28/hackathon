@@ -18,8 +18,11 @@ public partial class PatyService(
     DistrictService districts,
     IRepository<Bulletin> bulletins,
     WeatherService weather,
-    IChatModel chatModel)
+    IChatModel chatModel,
+    RiskModelService riskModel)
 {
+    private static readonly string[] LevelNames = ["bajo", "moderado", "alto", "muy alto"];
+
     // Palabras que indican que la persona busca un establecimiento de salud
     private static readonly string[] CenterWords = ["posta", "hospital", "centro de salud", "clinica", "medico", "doctor", "emergencia"];
 
@@ -68,9 +71,13 @@ public partial class PatyService(
         //    Si la pregunta es de clima, se quitan las palabras de clima: así "pronóstico de hoy" no trae consejos
         //    al azar, pero "va a llover, ¿qué hago con mi chacra?" sí trae los de la chacra.
         var searchText = WeatherVocabulary().Replace(text, " ");
-        var tips = await tipSearch.SearchAsync(searchText, req.Domain, 3, ct);
+        IReadOnlyList<PreventionTip> tips = await tipSearch.SearchAsync(searchText, req.Domain, 6, ct);
         if (tips.Count == 0 && req.Domain is not null)
-            tips = await tipSearch.SearchAsync(searchText, null, 3, ct);
+            tips = await tipSearch.SearchAsync(searchText, null, 6, ct);
+        // En una emergencia sirve qué hacer AHORA: primero los consejos de la fase "durante" (orden estable)
+        if (tri.Level == TriageLevel.Grave)
+            tips = tips.OrderBy(t => t.Phase == EventPhase.Durante ? 0 : 1).ToList();
+        tips = tips.Take(3).ToList();
 
         // 3) Historial de la zona
         var zoneWarnings = new List<string>();
@@ -90,6 +97,11 @@ public partial class PatyService(
                 .Select(h => h.Warning));
             if (asksZone && summary.Hazards.Count == 0)
                 zoneWarnings.Add(summary.Coverage);
+
+            // Riesgo de este mes según el modelo XGBoost local: se menciona si lo piden o si es alto
+            if ((await riskModel.PredictAsync([ubigeo], ct: ct)).GetValueOrDefault(ubigeo) is { } pred && (asksZone || pred.Level >= 2))
+                zoneWarnings.Insert(0, $"Este mes, el modelo de riesgo de Paty estima {pred.Probability:P0} de probabilidad de emergencia " +
+                                       $"por lluvias en tu distrito (riesgo {LevelNames[pred.Level]}), según el historial del INDECI.");
         }
 
         // 3b) Boletín oficial vigente del ENFEN (estado de El Niño), si la persona pregunta por El Niño o por su zona
@@ -258,11 +270,13 @@ public partial class PatyService(
         IReadOnlyList<string> zoneWarnings, IReadOnlyList<string> notices)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("Eres Paty, asistente de prevención ante el Fenómeno El Niño en Perú.");
+        sb.AppendLine("Eres Paty, Asistente de Prevención ante el Fenómeno El Niño en Perú.");
+        sb.AppendLine("Tu único objetivo es entregar instrucciones prácticas, inmediatas y de bajo costo para minimizar daños usando materiales comunes.");
         sb.AppendLine("Respondes en español simple, frases cortas, máximo 5 pasos numerados.");
-        sb.AppendLine("Usa SOLO la información de los FRAGMENTOS y del HISTORIAL. Si no está ahí, di:");
+        sb.AppendLine("Basa tus respuestas únicamente en los FRAGMENTOS (INDECI, MIDAGRI, MINSA, ENFEN), el HISTORIAL y los BOLETINES. Si no está ahí, di:");
         sb.AppendLine("\"No tengo esa información, acércate a tu centro de salud o municipalidad\".");
         sb.AppendLine("No diagnostiques ni recetes medicamentos. Cita la fuente al final.");
+        sb.AppendLine("Si hay síntomas de gravedad médica (sangrado, dificultad para respirar, desmayo), indica llamar de inmediato al SAMU (106).");
         sb.AppendLine("Si el HISTORIAL muestra eventos relacionados, advierte mencionando años y meses.");
         sb.AppendLine("NUNCA digas que un evento ocurrirá en una fecha exacta: es un patrón del pasado.");
         sb.AppendLine($"Nivel de gravedad detectado: {tri.Level}.");

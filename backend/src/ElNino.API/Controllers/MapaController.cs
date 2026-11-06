@@ -10,7 +10,7 @@ namespace ElNino.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class MapaController(MapService map, RiskMapService riskMap) : ControllerBase
+public class MapaController(MapService map, RiskMapService riskMap, RiskModelService riskModel) : ControllerBase
 {
     /// <summary>
     /// Ej: /api/mapa?lat=-11.9369&amp;lon=-76.6966&amp;radioKm=5
@@ -52,5 +52,21 @@ public class MapaController(MapService map, RiskMapService riskMap) : Controller
         if (geoJson["tuDistrito"] is null && geoJson["features"] is JsonArray { Count: 0 })
             return NotFound("La ubicación no corresponde a ningún distrito del Perú registrado.");
         return Content(geoJson.ToJsonString(), "application/geo+json");
+    }
+
+    /// <summary>
+    /// Predicción del modelo XGBoost local para un distrito: probabilidad de emergencia en el mes, nivel y variables usadas.
+    /// Ej: /api/mapa/prediccion?ubigeo=150118  (opcional &amp;anio=2027&amp;mes=2)
+    /// </summary>
+    [HttpGet("prediccion")]
+    public async Task<IActionResult> GetPrediccion([FromQuery] string ubigeo, [FromQuery] int? anio, [FromQuery] int? mes, CancellationToken ct)
+    {
+        if (!riskModel.IsAvailable) return StatusCode(503, "El modelo de riesgo no está cargado.");
+        if (string.IsNullOrWhiteSpace(ubigeo) || ubigeo.Length != 6 || !ubigeo.All(char.IsDigit))
+            return BadRequest("El ubigeo debe tener 6 dígitos.");
+        if (mes is < 1 or > 12 || anio is < 2010 or > 2100) return BadRequest("Año o mes inválido.");
+
+        var p = (await riskModel.PredictAsync([ubigeo], anio, mes, ct))[ubigeo];
+        return Ok(new { prediccion = p, modelo = riskModel.Model!.Meta });
     }
 }

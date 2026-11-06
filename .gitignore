@@ -1,0 +1,3 @@
+# Entorno de entrenamiento del modelo (se recrea con pip)
+ml/.venv/
+__pycache__/

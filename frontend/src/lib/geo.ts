@@ -6,7 +6,18 @@ type Coords = { latitude: number; longitude: number }
 
 let cached: Promise<Coords | null> | null = null
 
+/** `?lat=-11.93&lon=-76.69` en la URL fija la ubicación: para demos en una laptop sin GPS. */
+function fromUrl(): Coords | null {
+  const q = new URLSearchParams(location.search)
+  const latitude = Number(q.get('lat'))
+  const longitude = Number(q.get('lon'))
+  return q.has('lat') && q.has('lon') && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 ? { latitude, longitude } : null
+}
+
+const urlCoords = fromUrl()
+
 export function getPosition(): Promise<Coords | null> {
+  if (urlCoords) return Promise.resolve(urlCoords)
   if (!('geolocation' in navigator)) return Promise.resolve(null)
   cached ??= new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
