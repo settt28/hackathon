@@ -93,6 +93,16 @@ public partial class PatyService(
         // 1) Triaje
         var tri = await triage.EvaluateAsync(req.Message, ct);
 
+        // 1a) ¿Pide los números de emergencia? Se dan directo, con sus botones
+        if (tri.Level != TriageLevel.Grave && AsksNumbers(text))
+            return new PatyReply(NumbersReply, location, tri, [], [], [], [], NumberActions(ubigeo), UsedAi: false);
+
+        // Malestar sin síntomas concretos, o un tema sin contenido oficial: se orienta en vez de dar un consejo al azar
+        var sick = tri.Level == TriageLevel.Leve && SickWords.Any(w => TextNormalizer.ContainsTerm(text, w));
+        if (sick || (tri.Level != TriageLevel.Grave && NoContentWords.Any(w => TextNormalizer.ContainsTerm(text, w))))
+            return new PatyReply(sick ? SickReply : NoContentReply, location, tri, [], [], [], [],
+                [new PatyAction("llamar", "Llamar al 106 (SAMU – ambulancia)", "106")], UsedAi: false);
+
         // 1b) ¿Pregunta por su zona o su seguridad? Se responde directo con los datos de hoy (no con consejos al azar)
         var mentionedHazards = HazardWords.Where(kv => kv.Value.Any(w => TextNormalizer.ContainsTerm(text, w))).Select(kv => kv.Key).ToList();
         ZoneStatus? status = null;
@@ -162,7 +172,7 @@ public partial class PatyService(
         // 4) Postas cercanas (si hay ubicación y la situación lo amerita o la persona lo pide)
         var wantsCenter = WantsCenter(text);
         IReadOnlyList<NearbyHealthCenter> nearest = [];
-        if (req.Latitude is double lat && req.Longitude is double lon &&
+        if (location is not null && req.Latitude is double lat && req.Longitude is double lon &&
             (wantsCenter || (tri.Level != TriageLevel.Leve && tri.EmergencyType == EmergencyType.Medica)))
         {
             nearest = await healthCenters.GetNearestAsync(lat, lon, 3,
@@ -170,6 +180,7 @@ public partial class PatyService(
         }
 
         var actions = BuildActions(tri, wantsCenter, nearest, ubigeo);
+        if (TriageService.IsCrisis(text)) actions.Insert(0, new PatyAction("llamar", "Llamar al 113 (salud mental)", "113"));
 
         // 5) Respuesta: primero intenta la IA; si no hay IA o falla, usa la plantilla
         string? aiText = null;
@@ -190,7 +201,7 @@ public partial class PatyService(
         var reply = string.IsNullOrWhiteSpace(aiText)
             ? status is not null
                 ? StatusReply(status, tips)
-                : BuildTemplateReply(tri, tips, zoneWarnings, notices, nearest, wantsCenter, ubigeo)
+                : BuildTemplateReply(tri, tips, zoneWarnings, notices, nearest, wantsCenter, ubigeo, text)
             : aiText.Trim();
 
         // En emergencia grave, el aviso de llamar va siempre primero, aunque responda la IA
@@ -354,15 +365,49 @@ public partial class PatyService(
                 actions.Add(new PatyAction("ver_zona_segura", "Ver zona segura"));
             }
         }
+        else if (tri.PhoneNumber is not null)
+        {
+            actions.Add(new PatyAction("llamar", $"Llamar al {tri.PhoneNumber} ({tri.PhoneLabel})", tri.PhoneNumber));
+        }
         if (nearest.Count > 0 || wantsCenter || (tri.Level != TriageLevel.Leve && tri.EmergencyType == EmergencyType.Medica))
             actions.Add(new PatyAction("ver_centros", "Ver centro de salud más cercano"));
         return actions;
     }
 
+    // Las mismas respuestas están en frontend/src/lib/paty/engine.ts: si cambian aquí, deben cambiar allí.
+    private static readonly string[] NumberWords = ["numero", "numeros", "telefono", "telefonos", "a quien llamo"];
+    private static readonly string[] ServiceWords = ["bomberos", "samu", "ambulancia", "policia", "defensa civil", "emergencia", "emergencias"];
+    private static readonly string[] GreetingWords = ["hola", "buenos dias", "buenas tardes", "buenas noches", "gracias", "ayuda", "quien eres", "que puedes hacer", "que haces", "tengo miedo"];
+
+    private const string NumbersReply = "Números de emergencia en el Perú: 106 SAMU (ambulancia), 116 Bomberos, 115 Defensa Civil y 105 Policía. El 911 funciona en Lima Metropolitana y Callao.";
+    private const string GreetingReply = "Hola, soy Paty. Te ayudo a prepararte ante El Niño: tu salud, tu chacra, tu casa y las emergencias. Pregúntame, por ejemplo, \"cómo evito el dengue\" o \"qué hago si viene un huaico\". Si estás en peligro, cuéntame qué pasa o llama al 106 (SAMU) o al 116 (Bomberos).";
+    private const string NeedLocationReply = "Para decirte cuál es el más cercano necesito tu ubicación: actívala e inténtalo de nuevo. Si es urgente, llama al SAMU (106).";
+    private static readonly string[] SickWords = ["enfermo", "enferma", "me siento mal", "se siente mal"];
+    private static readonly string[] NoContentWords = ["friaje", "helada", "heladas", "sequia"];
+    private const string SickReply = "Cuéntame qué síntomas hay (por ejemplo fiebre, diarrea o dificultad para respirar) para orientarte mejor. Si empeora o la persona no reacciona, llama al SAMU (106).";
+    private const string NoContentReply = "Todavía no tengo información oficial sobre ese tema. Acércate a tu municipalidad o a tu centro de salud. Si es urgente, llama al SAMU (106).";
+    private const string CrisisReply ="No tienes que pasar por esto sin ayuda. Llama ahora a la Línea 113 del MINSA y pide orientación en salud mental (gratuita, las 24 horas), o al SAMU (106). Si puedes, busca a alguien de confianza y quédate con esa persona.";
+
+    private static bool AsksNumbers(string text) =>
+        NumberWords.Any(w => TextNormalizer.ContainsTerm(text, w)) && ServiceWords.Any(w => TextNormalizer.ContainsTerm(text, w));
+
+    private static List<PatyAction> NumberActions(string? ubigeo)
+    {
+        var actions = new List<PatyAction>();
+        if (TriageService.Has911(ubigeo)) actions.Add(new PatyAction("llamar", "Llamar al 911 (Central Única de Emergencias)", "911"));
+        actions.Add(new PatyAction("llamar", "Llamar al 106 (SAMU – ambulancia)", "106"));
+        actions.Add(new PatyAction("llamar", "Llamar al 116 (Bomberos)", "116"));
+        actions.Add(new PatyAction("llamar", "Llamar al 115 (Defensa Civil)", "115"));
+        actions.Add(new PatyAction("llamar", "Llamar al 105 (Policía)", "105"));
+        return actions;
+    }
+
     private static string BuildTemplateReply(TriageResult tri, IReadOnlyList<PreventionTip> tips,
-        List<string> zoneWarnings, List<string> notices, IReadOnlyList<NearbyHealthCenter> nearest, bool wantsCenter, string? ubigeo)
+        List<string> zoneWarnings, List<string> notices, IReadOnlyList<NearbyHealthCenter> nearest, bool wantsCenter, string? ubigeo, string text)
     {
         var sb = new StringBuilder();
+
+        if (TriageService.IsCrisis(text)) return CrisisReply;
 
         if (tri.Level == TriageLevel.Grave)
         {
@@ -409,6 +454,10 @@ public partial class PatyService(
         if (tri.Level == TriageLevel.Moderado && tri.EmergencyType == EmergencyType.Medica)
             sb.AppendLine().AppendLine("Si los síntomas continúan o empeoran, acude a tu centro de salud.");
 
+        // Pregunta sobre un peligro grave: se responde, pero el número queda a mano por si está pasando ahora
+        if (tri.Level != TriageLevel.Grave && tri.PhoneNumber is not null)
+            sb.AppendLine().AppendLine($"Si está pasando ahora mismo, llama al {tri.PhoneNumber} ({tri.PhoneLabel}).");
+
         foreach (var w in zoneWarnings)
             sb.AppendLine().AppendLine($"📍 {w}");
 
@@ -416,7 +465,9 @@ public partial class PatyService(
             sb.AppendLine().AppendLine(n.StartsWith("🌤") || n.StartsWith("⚠") ? n : $"📢 {n}");
 
         if (sb.Length == 0)
-            sb.Append(OffTopicReply + " Si es urgente, llama al SAMU (106) o acércate a tu centro de salud.");
+            sb.Append(wantsCenter ? NeedLocationReply
+                : GreetingWords.Any(w => TextNormalizer.ContainsTerm(text, w)) ? GreetingReply
+                : OffTopicReply + " Si es urgente, llama al SAMU (106) o acércate a tu centro de salud.");
 
         return sb.ToString().Trim();
     }

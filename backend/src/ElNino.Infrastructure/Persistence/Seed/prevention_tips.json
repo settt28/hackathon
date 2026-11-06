@@ -17,6 +17,8 @@
       "zancudo",
       "mosquito",
       "aedes",
+      "zika",
+      "chikungunya",
       "agua estancada",
       "recipientes",
       "repelente",
@@ -75,7 +77,8 @@
       "desinfectar",
       "estomago",
       "manos",
-      "higiene"
+      "higiene",
+      "colera"
     ],
     "source": "MINSA",
     "sourceDocument": "Alerta epidemiológica N.° 008-2026 ante El Niño 2026-2027 (nota de El Peruano)",
@@ -321,7 +324,11 @@
       "vivienda",
       "proteger",
       "prepararse",
+      "derrumbe",
+      "deslizamiento",
       "evacuacion",
+      "llueve",
+      "lluvias",
       "lluvia"
     ],
     "source": "INDECI",

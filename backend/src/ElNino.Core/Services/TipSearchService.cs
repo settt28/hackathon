@@ -41,7 +41,9 @@ public class TipSearchService(IRepository<PreventionTip> tips)
         var score = 0;
         foreach (var w in words)
         {
-            if (keywords.Any(k => SameStem(k, w))) score += 3;
+            // La palabra exacta pesa más: "agua" debe traer el consejo de agua, no el que menciona "agua estancada"
+            if (keywords.Contains(w)) score += 5;
+            else if (keywords.Any(k => SameStem(k, w))) score += 3;
             if (titleWords.Any(tw => SameStem(tw, w))) score += 1;
         }
         return score;

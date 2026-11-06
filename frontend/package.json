@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "apk": "npm run build && cap sync android && cd android && .\\gradlew.bat assembleDebug"
+    "apk": "npm run build && cap sync android && cd android && .\\gradlew.bat assembleDebug",
+    "test:offline": "node --no-warnings --test scripts/paty-offline.test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.0",

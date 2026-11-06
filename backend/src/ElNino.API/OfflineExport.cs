@@ -29,16 +29,20 @@ public static class OfflineExport
         var sp = scope.ServiceProvider;
 
         // --- Conocimiento: va en el bundle principal, debe estar siempre disponible ---
-        var enfen = (await sp.GetRequiredService<IRepository<Bulletin>>().ListAsync(b => b.Institution == "ENFEN", ct))
-            .MaxBy(b => b.PublishedAt);
-        var keywords = await sp.GetRequiredService<IRepository<AlarmKeyword>>().GetAllAsync(ct);
-        var tips = await sp.GetRequiredService<IRepository<PreventionTip>>().GetAllAsync(ct);
-        await WriteAsync(Path.Combine(frontendDir, "src", "data", "offline", "knowledge.json"), new
+        await WriteAsync(Path.Combine(frontendDir, "src", "data", "offline", "knowledge.json"), await KnowledgeAsync(sp, ct), ct);
+
+        // --- Respuestas del backend a las frases de prueba: npm run test:offline comprueba que engine.ts responda igual ---
+        var casesFile = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(frontendDir, "scripts", "paty-cases.json"), ct))!.AsObject();
+        var triage = sp.GetRequiredService<TriageService>();
+        var tipSearch = sp.GetRequiredService<TipSearchService>();
+        var golden = new List<object>();
+        foreach (var message in casesFile.SelectMany(group => group.Value!.AsArray()).Select(m => m!.GetValue<string>()))
         {
-            keywords = keywords.Select(k => new { k.Term, k.Level, k.EmergencyType }),
-            tips = tips.Select(t => new { t.Id, t.Hazard, t.Phase, t.Topic, t.Title, t.Steps, t.Keywords, t.Source, t.SourceUrl }),
-            enfen = enfen is null ? null : new { enfen.Title, enfen.PublishedAt, enfen.AlertStatus, enfen.Summary },
-        }, ct);
+            var t = await triage.EvaluateAsync(message, ct);
+            var found = await tipSearch.SearchAsync(message, null, 3, ct);
+            golden.Add(new { message, level = t.Level, emergencyType = t.EmergencyType, phoneNumber = t.PhoneNumber, tips = found.Select(x => x.Title) });
+        }
+        await WriteAsync(Path.Combine(frontendDir, "scripts", "paty-golden.json"), golden, ct);
 
         // --- Postas: [nombre, tipo, atiende emergencias, lat, lon, teléfono] ---
         var centers = await sp.GetRequiredService<IRepository<HealthCenter>>().ListAsync(_ => true, ct);
@@ -55,10 +59,16 @@ public static class OfflineExport
         var history = sp.GetRequiredService<ZoneHistoryService>();
         var now = DateTime.UtcNow.AddHours(-5);
 
-        // Índice 0 = enero. Cada mes usa su próxima ocurrencia. Solo el mes en curso sabe del boletín vigente del ENFEN.
+        // Índice 0 = enero. Cada mes usa su próxima ocurrencia. Si el ENFEN mantiene El Niño, se asume que sigue este mes
+        // y los 3 siguientes (la app sin conexión no puede leer boletines nuevos); más allá, la lista del entrenamiento.
+        var ninoNow = await model.IsNinoNowAsync(ct);
         var byMonth = new IReadOnlyDictionary<string, RiskPrediction>[12];
         for (var m = 1; m <= 12; m++)
-            byMonth[m - 1] = await model.PredictAsync(ubigeos, m >= now.Month ? now.Year : now.Year + 1, m, ct);
+        {
+            var monthsAhead = (m - now.Month + 12) % 12;
+            byMonth[m - 1] = await model.PredictAsync(ubigeos, m >= now.Month ? now.Year : now.Year + 1, m, ct,
+                assumeNino: ninoNow && monthsAhead <= 3 ? true : null);
+        }
 
         var rows = new List<object>(districts.Count);
         foreach (var d in districts)
@@ -77,6 +87,22 @@ public static class OfflineExport
             });
         }
         await WriteAsync(Path.Combine(frontendDir, "public", "offline", "districts.json"), rows, ct);
+    }
+
+    /// <summary>Palabras de alarma, consejos y último boletín: lo que el teléfono guarda para responder sin conexión.</summary>
+    public static async Task<object> KnowledgeAsync(IServiceProvider sp, CancellationToken ct = default)
+    {
+        var enfen = (await sp.GetRequiredService<IRepository<Bulletin>>().ListAsync(b => b.Institution == "ENFEN", ct))
+            .MaxBy(b => b.PublishedAt);
+        var keywords = await sp.GetRequiredService<IRepository<AlarmKeyword>>().GetAllAsync(ct);
+        var tips = await sp.GetRequiredService<IRepository<PreventionTip>>().GetAllAsync(ct);
+        return new
+        {
+            generatedAt = DateTime.UtcNow,
+            keywords = keywords.Select(k => new { k.Term, k.Level, k.EmergencyType }),
+            tips = tips.Select(t => new { t.Id, t.Hazard, t.Phase, t.Topic, t.Title, t.Steps, t.Keywords, t.Source, t.SourceUrl }),
+            enfen = enfen is null ? null : new { enfen.Title, enfen.PublishedAt, enfen.AlertStatus, enfen.Summary },
+        };
     }
 
     private static double Round(double v) => Math.Round(v, 4);

@@ -9,7 +9,7 @@ namespace ElNino.Infrastructure.Persistence;
 
 /// <summary>
 /// Crea la base de datos y carga los datos iniciales desde los JSON de Persistence/Seed.
-/// Solo inserta en tablas vacías: no pisa datos que ya existan.
+/// Solo inserta en tablas vacías, salvo consejos y palabras de alarma, que se recargan en cada arranque.
 /// Para recargar todo, borrar el archivo elnino.db y reiniciar la API.
 /// </summary>
 public static class DataSeeder
@@ -26,6 +26,11 @@ public static class DataSeeder
     {
         // Sin migraciones para el hackathon: crea las tablas si no existen.
         await db.Database.EnsureCreatedAsync(ct);
+
+        // Consejos y palabras de alarma los define el repositorio: se recargan siempre, para que una base
+        // ya creada no se quede sin las correcciones (una palabra de alarma que falta es una emergencia sin detectar).
+        await db.PreventionTips.ExecuteDeleteAsync(ct);
+        await db.AlarmKeywords.ExecuteDeleteAsync(ct);
 
         await SeedTable(db, db.HealthCenters, "health_centers.json", logger, ct);
         await SeedTable(db, db.PreventionTips, "prevention_tips.json", logger, ct);
