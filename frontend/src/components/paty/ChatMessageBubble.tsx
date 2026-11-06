@@ -5,7 +5,7 @@ import type { ChatMessage } from '../../hooks/usePatyChat'
 export default function ChatMessageBubble({ message }: { message: ChatMessage }) {
   if (message.role === 'user') {
     return (
-      <li className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-yellow-400 px-4 py-2.5 text-[15px] text-[#0a1428]">
+      <li className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-sky-600 px-4 py-2.5 text-[15px] text-white dark:bg-cyan-400 dark:text-[#070d17]">
         {message.text}
       </li>
     )
@@ -20,8 +20,12 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
 
   return (
     <li
-      className={`mr-auto max-w-[90%] space-y-3 rounded-2xl rounded-bl-md border px-4 py-3 text-[15px] text-white ${
-        message.error ? 'border-red-400/40 bg-red-950/40' : grave ? 'border-red-500/60 bg-[#2a1220]' : 'border-[#1e3460] bg-[#11234a]'
+      className={`mr-auto max-w-[90%] space-y-3 rounded-2xl rounded-bl-md border px-4 py-3 text-[15px] ${
+        message.error
+          ? 'border-red-300 bg-red-50 text-red-800 dark:border-red-400/40 dark:bg-red-950/40 dark:text-red-100'
+          : grave
+            ? 'border-red-300 bg-red-50 text-slate-900 dark:border-red-500/60 dark:bg-[#2a1220] dark:text-white'
+            : 'border-slate-200 bg-white text-slate-900 dark:border-cyan-400/15 dark:bg-[#0b1a26] dark:text-white'
       }`}
     >
       <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p>
@@ -43,7 +47,7 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
       )}
 
       {warnings.length > 0 && (
-        <ul className="space-y-1.5 text-sm text-amber-200">
+        <ul className="space-y-1.5 text-sm text-amber-700 dark:text-amber-200">
           {warnings.map((w) => (
             <li key={w} className="flex gap-2">
               <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
@@ -61,7 +65,7 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
                 href={`https://www.google.com/maps/search/?api=1&query=${c.center.latitude},${c.center.longitude}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex gap-2 text-sky-300 hover:underline"
+                className="flex gap-2 text-sky-700 hover:underline dark:text-sky-300"
               >
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 {c.center.name} · {c.distanceKm.toFixed(1)} km (~{c.walkingMinutes} min a pie)
@@ -72,12 +76,12 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
       )}
 
       {sources.length > 0 && (
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Fuente:{' '}
           {sources.map((t, i) => (
             <span key={t.sourceUrl}>
               {i > 0 && ' · '}
-              <a href={t.sourceUrl} target="_blank" rel="noreferrer" className="underline hover:text-slate-200">
+              <a href={t.sourceUrl} target="_blank" rel="noreferrer" className="underline hover:text-slate-800 dark:hover:text-slate-200">
                 {t.source}
               </a>
             </span>

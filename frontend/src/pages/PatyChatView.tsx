@@ -18,6 +18,7 @@ interface PatyChatViewProps {
  * Vista completa del chatbot Paty.
  * Sin mensajes: pantalla de bienvenida con sugerencias. Con mensajes: la conversación.
  * Usa 100dvh para ocupar toda la altura real en móviles (evita el salto de la barra del navegador).
+ * El tema (claro/oscuro) es global y se cambia desde el dashboard.
  */
 export default function PatyChatView({ userName }: PatyChatViewProps) {
   const navigate = useNavigate()
@@ -25,6 +26,7 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
   const { messages, sending, send } = usePatyChat()
   const [draft, setDraft] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -39,22 +41,26 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
   const goBack = () => (location.key === 'default' ? navigate('/') : navigate(-1))
 
   return (
-    <div className="h-[100dvh] bg-[#081122] font-[Roboto,Arial,Helvetica,sans-serif] antialiased">
-      {/* En desktop se centra como una app móvil; en móvil ocupa todo el ancho */}
-      <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden bg-[#0b1730] md:border-x md:border-white/5">
+    <div className="h-[100dvh] bg-slate-200 antialiased dark:bg-[#1f1f22]">
+      {/* En desktop se centra como una app móvil; en móvil ocupa todo el ancho. Fondos iguales al dashboard */}
+      <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden bg-[#f4f7fb] md:border-x md:border-slate-200 dark:bg-[#070d17] dark:md:border-cyan-400/15">
         <ChatHeader onBack={goBack} />
 
-        <main className="relative flex-1 overflow-y-auto bg-[radial-gradient(rgba(148,163,184,0.09)_1px,transparent_1px)] bg-[length:22px_22px]">
+        {/* Textura sutil de puntos (como el dashboard) */}
+        <main className="relative flex-1 overflow-y-auto bg-[radial-gradient(rgba(14,165,233,0.12)_1px,transparent_1px)] bg-[length:22px_22px] dark:bg-[radial-gradient(rgba(34,211,238,0.07)_1px,transparent_1px)]">
           {messages.length === 0 ? (
             <>
               <div
-                className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_50%_40%,rgba(250,204,21,0.08),transparent_60%)]"
+                className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_50%_0%,rgba(14,165,233,0.12),transparent_60%)] dark:bg-[radial-gradient(ellipse_at_50%_0%,rgba(34,211,238,0.1),transparent_60%)]"
                 aria-hidden
               />
               <div className="relative pb-6">
                 <PatyHero greeting={getGreeting()} userName={userName} />
-                <SuggestionList items={SUGGESTIONS} onSelect={(s) => submit(s.text)} />
-                <p className="mt-10 px-4 text-center text-xs tracking-wide text-slate-400">
+                <SuggestionList
+                  items={SUGGESTIONS}
+                  onSelect={(s) => (s.prompt ? submit(s.prompt) : inputRef.current?.focus())}
+                />
+                <p className="mt-10 px-4 text-center text-xs tracking-wide text-slate-500 dark:text-cyan-200/50">
                   Respaldado por datos de observación del Perú • Senamhi
                 </p>
               </div>
@@ -65,7 +71,7 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
                 <ChatMessageBubble key={m.id} message={m} />
               ))}
               {sending && (
-                <li className="mr-auto rounded-2xl rounded-bl-md bg-[#11234a] px-4 py-3 text-sm text-slate-300">
+                <li className="mr-auto rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 dark:border-cyan-400/15 dark:bg-[#0b1a26] dark:text-slate-300">
                   Paty está escribiendo…
                 </li>
               )}
@@ -74,7 +80,7 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
           <div ref={endRef} />
         </main>
 
-        <ChatInputBar value={draft} onChange={setDraft} onSubmit={submit} disabled={sending} />
+        <ChatInputBar value={draft} onChange={setDraft} onSubmit={submit} disabled={sending} inputRef={inputRef} />
       </div>
     </div>
   )
