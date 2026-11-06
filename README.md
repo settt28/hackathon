@@ -229,3 +229,10 @@ atiende la IA local, y Paty responde en voz alta con la voz del navegador.
 
 `Pruebas_Alonso` integra el trabajo de todo el equipo: `Jherson-BD` (base de datos y APIs),
 `backend-Sebastian` (conexión de los módulos con el backend) y `PRUEBAS-FRONTED-CLEVER` (diseño de la interfaz).
+## Integrantes 
+- Segura Chunga Sebastian Alonso
+- Rafael Castro Alonso
+- Vasquez Bedoya Edgar Antonio
+- Amoroto Castillo Rodrigo Sebastian
+- Cahuana Moquillaza Herbert Jherson
+- Rojas Quispe Clever Enrique
