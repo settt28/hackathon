@@ -12,6 +12,9 @@ public class District : BaseEntity
     public string Province { get; set; } = string.Empty;
     public string Department { get; set; } = string.Empty;
 
+    /// <summary>Región natural: COSTA, SIERRA o SELVA (se toma del SINPAD del INDECI).</summary>
+    public string NaturalRegion { get; set; } = string.Empty;
+
     // Rectángulo que contiene al distrito: filtro rápido antes del cálculo exacto con el polígono
     public double MinLat { get; set; }
     public double MaxLat { get; set; }

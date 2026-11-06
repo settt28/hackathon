@@ -10,13 +10,14 @@ namespace ElNino.Core.Services;
 /// 1) Triaje por reglas → 2) búsqueda de consejos → 3) historial de la zona →
 /// 4) postas cercanas → 5) respuesta (IA si está disponible; si no, plantilla).
 /// </summary>
-public class PatyService(
+public partial class PatyService(
     TriageService triage,
     TipSearchService tipSearch,
     ZoneHistoryService zoneHistory,
     HealthCenterService healthCenters,
     DistrictService districts,
     IRepository<Bulletin> bulletins,
+    WeatherService weather,
     IChatModel chatModel)
 {
     // Palabras que indican que la persona busca un establecimiento de salud
@@ -26,7 +27,11 @@ public class PatyService(
     private static readonly string[] ZoneWords = ["mi zona", "zona", "historial", "antes paso", "siempre pasa", "aqui"];
 
     // Palabras que piden el estado oficial de El Niño (comunicados del ENFEN)
-    private static readonly string[] OfficialWords = ["nino", "fenomeno", "enfen", "pronostico", "clima", "senamhi", "comunicado", "boletin"];
+    private static readonly string[] OfficialWords = ["nino", "fenomeno", "enfen", "comunicado", "boletin"];
+
+    // Pronóstico del tiempo y avisos meteorológicos (SENAMHI)
+    private static readonly string[] ForecastWords = ["pronostico", "clima", "el tiempo", "temperatura", "llovera", "va a llover", "hara calor", "hace calor", "hara frio"];
+    private static readonly string[] WarningWords = ["aviso", "avisos", "alertas", "alerta meteorologica", "alertas meteorologicas", "senamhi"];
 
     // Palabras asociadas a cada peligro, para elegir qué advertencias históricas mostrar
     private static readonly Dictionary<HazardType, string[]> HazardWords = new()
@@ -59,10 +64,13 @@ public class PatyService(
         // 1) Triaje
         var tri = await triage.EvaluateAsync(req.Message, ct);
 
-        // 2) Consejos (si no hay en el sector elegido, se busca en todos)
-        var tips = await tipSearch.SearchAsync(req.Message, req.Domain, 3, ct);
+        // 2) Consejos (si no hay en el sector elegido, se busca en todos).
+        //    Si la pregunta es de clima, se quitan las palabras de clima: así "pronóstico de hoy" no trae consejos
+        //    al azar, pero "va a llover, ¿qué hago con mi chacra?" sí trae los de la chacra.
+        var searchText = WeatherVocabulary().Replace(text, " ");
+        var tips = await tipSearch.SearchAsync(searchText, req.Domain, 3, ct);
         if (tips.Count == 0 && req.Domain is not null)
-            tips = await tipSearch.SearchAsync(req.Message, null, 3, ct);
+            tips = await tipSearch.SearchAsync(searchText, null, 3, ct);
 
         // 3) Historial de la zona
         var zoneWarnings = new List<string>();
@@ -93,6 +101,14 @@ public class PatyService(
             if (latest is not null)
                 notices.Add($"Según el {latest.Title} ({latest.PublishedAt:dd/MM/yyyy}): {latest.AlertStatus}. {latest.Summary}");
         }
+
+        // 3c) Pronóstico y avisos del SENAMHI para la zona
+        var asksForecast = ForecastWords.Any(w => TextNormalizer.ContainsTerm(text, w));
+        var asksWarnings = WarningWords.Any(w => TextNormalizer.ContainsTerm(text, w));
+        if ((asksForecast || asksWarnings) && ubigeo is not null && await districts.GetByUbigeoAsync(ubigeo, ct) is { } district)
+            notices.AddRange(await WeatherNoticesAsync(district, req.Latitude, req.Longitude, asksForecast, asksWarnings, ct));
+        else if (asksForecast || asksWarnings)
+            notices.Add("Para darte el pronóstico y los avisos del SENAMHI de tu zona necesito tu ubicación.");
 
         // 4) Postas cercanas (si hay ubicación y la situación lo amerita o la persona lo pide)
         var wantsCenter = CenterWords.Any(w => TextNormalizer.ContainsTerm(text, w));
@@ -128,6 +144,45 @@ public class PatyService(
         var tipRefs = tips.Select(t => new TipReference(t.Id, t.Title, t.Domain, t.Source, t.Steps,
             t.SourceDocument, t.SourceUrl, t.SourceDate)).ToList();
         return new PatyReply(reply, location, tri, tipRefs, zoneWarnings, notices, nearest, actions, UsedAi: !string.IsNullOrWhiteSpace(aiText));
+    }
+
+    private async Task<List<string>> WeatherNoticesAsync(District district, double? lat, double? lon,
+        bool forecast, bool warnings, CancellationToken ct)
+    {
+        var list = new List<string>();
+        try
+        {
+            if (forecast && await weather.GetLocalForecastAsync(district, lat, lon, ct) is { Forecast: { } f } lf)
+            {
+                var when = lf.IsToday ? "hoy" : $"el {f.Date:dd/MM}";
+                list.Add($"🌤️ Pronóstico del SENAMHI para {when} en {lf.City}: máxima {f.MaxC} °C, mínima {f.MinC} °C. {f.Description}");
+            }
+
+            if (warnings || forecast)
+            {
+                var mine = (await weather.GetWarningsAsync(district, false, ct)).Where(w => w.AffectsYourArea).Take(3).ToList();
+                foreach (var w in mine)
+                {
+                    var a = w.Warning;
+                    var state = a.Status == "emitido" ? $"desde el {a.StartsAt:dd/MM}" : $"vigente hasta el {a.EndsAt:dd/MM}";
+                    list.Add($"⚠️ Aviso del SENAMHI N.° {a.Number} – nivel {a.Level} ({state}): {a.Title}. {FirstSentence(a.Summary)}");
+                }
+                if (warnings && mine.Count == 0)
+                    list.Add($"No hay avisos meteorológicos del SENAMHI vigentes que mencionen {district.Department} o tu región.");
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            list.Add("No pude consultar al SENAMHI en este momento. Revisa https://www.senamhi.gob.pe");
+        }
+        return list;
+    }
+
+    private static string FirstSentence(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return string.Empty;
+        var i = s.IndexOf(". ", StringComparison.Ordinal);
+        return i > 0 ? s[..(i + 1)] : s;
     }
 
     private static List<PatyAction> BuildActions(TriageResult tri, bool wantsCenter, IReadOnlyList<NearbyHealthCenter> nearest)
@@ -189,7 +244,7 @@ public class PatyService(
             sb.AppendLine().AppendLine($"📍 {w}");
 
         foreach (var n in notices)
-            sb.AppendLine().AppendLine($"📢 {n}");
+            sb.AppendLine().AppendLine(n.StartsWith("🌤") || n.StartsWith("⚠") ? n : $"📢 {n}");
 
         if (sb.Length == 0)
             sb.Append("No tengo esa información todavía. Puedes preguntarme sobre tu salud, tu chacra o tu casa. " +
@@ -227,4 +282,9 @@ public class PatyService(
         }
         return sb.ToString();
     }
+
+    /// <summary>Palabras de clima que no deben usarse para buscar consejos.</summary>
+    [System.Text.RegularExpressions.GeneratedRegex(
+        @"\b(pronostico|clima|tiempo|temperatura|llovera|llover|va|hoy|manana|avisos?|alertas?|meteorologicas?|senamhi|consultar|cual|para)\b")]
+    private static partial System.Text.RegularExpressions.Regex WeatherVocabulary();
 }

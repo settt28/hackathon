@@ -1,5 +1,6 @@
 using ElNino.Core.Interfaces;
 using ElNino.Infrastructure.Ai;
+using ElNino.Infrastructure.External;
 using ElNino.Infrastructure.Import;
 using ElNino.Infrastructure.Persistence;
 using ElNino.Infrastructure.Repositories;
@@ -28,6 +29,10 @@ public static class DependencyInjection
         services.AddScoped<DistrictImporter>();
         services.AddScoped<SinpadImporter>();
         services.AddScoped<DataImportService>();
+
+        // SENAMHI: pronóstico y avisos meteorológicos (lectura de su web, con caché)
+        services.AddMemoryCache();
+        services.AddSingleton<ISenamhiClient, SenamhiClient>();
 
         // Sin IA conectada: Paty responde con plantillas. Reemplazar por una implementación real.
         services.AddSingleton<IChatModel, NullChatModel>();
