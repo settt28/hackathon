@@ -25,8 +25,12 @@ export function usePatyChat() {
 
   /** Flujo común: agrega el mensaje del usuario, pide la respuesta y la agrega (o el error). */
   const run = useCallback(
-    async (userMsg: ChatMessage & { role: 'user' }, ask: (signal: AbortSignal) => Promise<{ reply: PatyReply; userText?: string }>) => {
-      if (abortRef.current) return
+    async (
+      userMsg: ChatMessage & { role: 'user' },
+      ask: (signal: AbortSignal) => Promise<{ reply: PatyReply; userText?: string }>,
+      autoSpeak = true,
+    ): Promise<PatyReply | undefined> => {
+      if (abortRef.current) return undefined
       const ctrl = new AbortController()
       abortRef.current = ctrl
       setSending(true)
@@ -37,12 +41,14 @@ export function usePatyChat() {
           ...m.map((x) => (x.id === userMsg.id && userText ? { ...x, text: userText } : x)),
           { id: id(), role: 'paty', text: reply.reply, data: reply },
         ])
-        // A quien habla, Paty le responde hablando
-        if (userMsg.voice) void speak(reply.reply)
+        // A quien habla, Paty le responde hablando (en la llamada lo maneja la propia llamada)
+        if (userMsg.voice && autoSpeak) void speak(reply.reply)
+        return reply
       } catch (e) {
-        if ((e as Error).name === 'AbortError') return
+        if ((e as Error).name === 'AbortError') return undefined
         const msg = e instanceof ApiError ? e.message : 'Ocurrió un error inesperado.'
         setMessages((m) => [...m, { id: id(), role: 'paty', text: msg, error: true }])
+        return undefined
       } finally {
         if (abortRef.current === ctrl) abortRef.current = null
         setSending(false)
@@ -54,7 +60,7 @@ export function usePatyChat() {
   const send = useCallback(
     (raw: string) => {
       const text = raw.trim().slice(0, 1000) // límite del backend
-      if (!text) return Promise.resolve()
+      if (!text) return Promise.resolve(undefined)
       return run({ id: id(), role: 'user', text }, async (signal) => {
         const coords = await getPosition()
         return { reply: await sendPatyMessage({ message: text, ...coords }, signal) }
@@ -64,11 +70,15 @@ export function usePatyChat() {
   )
 
   const sendVoice = useCallback(
-    (audio: Blob) =>
-      run({ id: id(), role: 'user', text: '🎤 Mensaje de voz…', voice: true }, async (signal) => {
-        const r = await sendPatyVoice(audio, await getPosition(), signal)
-        return { reply: r.respuesta, userText: `🎤 ${r.transcripcion}` }
-      }),
+    (audio: Blob, autoSpeak = true) =>
+      run(
+        { id: id(), role: 'user', text: '🎤 Mensaje de voz…', voice: true },
+        async (signal) => {
+          const r = await sendPatyVoice(audio, await getPosition(), signal)
+          return { reply: r.respuesta, userText: `🎤 ${r.transcripcion}` }
+        },
+        autoSpeak,
+      ),
     [run],
   )
 

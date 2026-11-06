@@ -98,6 +98,14 @@ Por ejemplo, Chosica (Lurigancho, Lima), una zona con historial de huaicos:
 http://localhost:5173/?lat=-11.9369&lon=-76.6966
 ```
 
+### Hablar con Paty por voz (como una llamada)
+
+En el chat, con el campo de texto vacío, toca el **micrófono**. Se abre la llamada: dices tu pregunta, Paty
+responde hablando y vuelve a escucharte, hasta que tocas **Colgar**. También puedes entrar directo desde el
+micrófono de "Habla con Paty" en el inicio. Funciona en Chrome, Edge y Safari (usa el reconocimiento de voz del
+navegador; la primera vez pide permiso para el micrófono). Si es una emergencia médica, la llamada se corta sola
+y aparece la alerta para llamar al SAMU (106).
+
 ### Preguntas para el chat
 
 - `hay un huaico` → emergencia: botones para llamar al 911 (en Lima y Callao), al 116 y al 115, y qué hacer mientras llega la ayuda
@@ -120,8 +128,8 @@ curl -X POST "http://localhost:5261/api/sms/entrante?key=demo-sms-2026" -d "text
 
 ## 6. Activar la IA de chat y la voz (opcional)
 
-Sin configurar nada, Paty ya funciona: responde con los consejos oficiales y lee en voz alta con la voz del
-navegador. Para que un modelo de lenguaje redacte las respuestas y para dictar por voz, elige una opción y
+Sin configurar nada, Paty ya funciona: responde con los consejos oficiales y puedes hablarle por voz (el navegador
+reconoce y lee en voz alta). Para que un modelo de lenguaje redacte las respuestas, elige una opción y
 **reinicia el backend** en la misma terminal donde definiste las variables.
 
 **Opción A: Groq (en la nube, gratis con registro).** Crea una clave en https://console.groq.com
@@ -155,8 +163,8 @@ $env:Ai__Tts__ApiKey="tu_clave"; $env:Ai__Tts__VoiceId="id_de_la_voz"
 ```
 
 Al arrancar, la consola del backend dice qué quedó activo, por ejemplo
-`IA de chat: llama-3.1-8b-instant · Dictado: whisper-large-v3-turbo`. El micrófono del chat solo aparece si el
-dictado está activo.
+`IA de chat: llama-3.1-8b-instant · Dictado: whisper-large-v3-turbo`. El dictado del servidor (Whisper) solo se
+usa en navegadores sin reconocimiento de voz propio.
 
 > Nunca subas las claves al repositorio: van solo en variables de entorno.
 
@@ -171,7 +179,7 @@ dictado está activo.
 | `No se pudo copiar ... ElNino.API.dll` al compilar | El backend sigue abierto en otra terminal: ciérralo antes de compilar. |
 | El mapa dice "Activa tu ubicación" | Da permiso de ubicación al navegador o usa `?lat=...&lon=...` (paso 5). |
 | "Demasiadas consultas seguidas" | Hay un límite de 20 consultas por minuto al chat. Espera un minuto. |
-| No aparece el micrófono en el chat | El dictado no está configurado (paso 6). |
+| El micrófono no te escucha | Da permiso de micrófono al navegador. Firefox no tiene reconocimiento de voz: usa Chrome, Edge o Safari, o configura el dictado con Whisper (paso 6). |
 | Una palabra de alarma nueva no se detecta | Las palabras de alarma se cargan al crear la base de datos: borra `elnino.db` y reinicia. |
 
 ## 8. Más información

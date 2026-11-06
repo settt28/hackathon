@@ -106,9 +106,10 @@ public class RiskMapService(
                 // El modelo ya aprende el historial y la estacionalidad: su nivel reemplaza a las dos reglas
                 level = prediction.Level;
                 var hit = riskModel.Model!.Meta["tasa_real_por_nivel"]?[level]?.GetValue<double>();
-                reasons.Insert(0, $"El modelo de IA local estima {prediction.Probability.ToString("P0", Es)} de probabilidad de emergencia este mes " +
-                                  "(XGBoost entrenado con el SINPAD" +
-                                  (hit is null ? ")." : $"; en sus pruebas, en este nivel hubo emergencia en el {hit.Value.ToString("P0", Es)} de los casos)."));
+                // Texto para la persona: sin jerga técnica (el nombre del modelo va en "modeloIa" para quien lo necesite)
+                reasons.Insert(0, $"Paty estima {prediction.Probability.ToString("P0", Es)} de probabilidad de emergencia este mes en este distrito, " +
+                                  "según el historial del INDECI" +
+                                  (hit is null ? "." : $" (en casos parecidos hubo emergencia en el {hit.Value.ToString("P0", Es)})."));
             }
             else if (inSeason && level >= 1)
             {

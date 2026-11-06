@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ChatHeader from '../components/paty/ChatHeader'
 import ChatInputBar from '../components/paty/ChatInputBar'
+import CallOverlay from '../components/paty/CallOverlay'
 import ChatMessageBubble from '../components/paty/ChatMessageBubble'
 import MedicalAlert from '../components/paty/MedicalAlert'
 import PatyHero from '../components/paty/PatyHero'
 import SuggestionList from '../components/paty/SuggestionList'
 import { SUGGESTIONS } from '../components/paty/suggestions'
+import { usePatyCall } from '../hooks/usePatyCall'
 import { usePatyChat } from '../hooks/usePatyChat'
 import { getCapacidades } from '../lib/api'
 import { getGreeting } from '../lib/greeting'
@@ -52,7 +54,17 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
     }
   })()
 
-  // El micrófono solo aparece si el servidor tiene dictado (Whisper) configurado
+  // Llamada por voz: el navegador reconoce la voz; si no puede, se graba y transcribe en el servidor (Whisper)
+  const call = usePatyCall({ ask: send, askAudio: (audio) => sendVoice(audio, false), serverCanListen: canDictate })
+  const startCall = call.start
+
+  // Desde el dashboard ("Habla con Paty" → micrófono) se llega con la llamada ya iniciada
+  const wantsCall = (location.state as { call?: boolean } | null)?.call === true
+  useEffect(() => {
+    if (wantsCall) void startCall()
+  }, [wantsCall, startCall])
+
+  // ¿El servidor puede transcribir audio? (respaldo para navegadores sin reconocimiento de voz)
   useEffect(() => {
     let active = true
     void getCapacidades().then((c) => active && setCanDictate(c.dictado))
@@ -61,8 +73,9 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
     }
   }, [])
 
+  // Baja hasta el último mensaje (sin mensajes no: la bienvenida debe verse desde arriba)
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    if (messages.length > 0) endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages.length, sending])
 
   const submit = (text: string) => {
@@ -76,7 +89,7 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
   return (
     <div className="h-[100dvh] bg-slate-200 antialiased dark:bg-[#1f1f22]">
       {/* En desktop se centra como una app móvil; en móvil ocupa todo el ancho. Fondos iguales al dashboard */}
-      <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden bg-[#f4f7fb] md:border-x md:border-slate-200 dark:bg-[#070d17] dark:md:border-cyan-400/15">
+      <div className="relative mx-auto flex h-full max-w-md flex-col overflow-hidden bg-[#f4f7fb] md:border-x md:border-slate-200 dark:bg-[#070d17] dark:md:border-cyan-400/15">
         <ChatHeader onBack={goBack} />
 
         {/* Textura sutil de puntos (como el dashboard) */}
@@ -123,11 +136,15 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
           />
         )}
 
+        {call.state !== 'idle' && (
+          <CallOverlay state={call.state} heard={call.heard} said={call.said} error={call.error} onHangUp={call.hangUp} onClose={call.close} />
+        )}
+
         <ChatInputBar
           value={draft}
           onChange={setDraft}
           onSubmit={submit}
-          onVoice={canDictate ? (audio) => void sendVoice(audio) : undefined}
+          onCall={() => void startCall()}
           disabled={sending}
           inputRef={inputRef}
         />
