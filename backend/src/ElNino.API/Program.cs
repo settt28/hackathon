@@ -28,6 +28,7 @@ builder.Services.AddScoped<ZoneHistoryService>();
 builder.Services.AddScoped<PatyService>();
 builder.Services.AddScoped<WeatherService>();
 builder.Services.AddScoped<MapService>();
+builder.Services.AddScoped<RiskMapService>();
 
 // CORS para el frontend de Vite (dev y preview, que se usa para probar la PWA)
 const string FrontendCors = "Frontend";

@@ -21,6 +21,9 @@ GET {{host}}/api/salud/centros-cercanos?lat=-11.9369&lon=-76.6966&soloEmergencia
 ### Mapa: todas las capas en GeoJSON (ubicación, postas, distrito, zonas, alertas, avisos SENAMHI)
 GET {{host}}/api/mapa?lat=-11.930&lon=-76.696&radioKm=3
 
+### Zonas de riesgo dinámicas: distritos coloreados por nivel de riesgo estimado
+GET {{host}}/api/mapa/riesgo?lat=-11.9369&lon=-76.6966&radioKm=20
+
 ### ¿En qué distrito estoy? (GPS → ubigeo)
 GET {{host}}/api/ubicacion?lat=-11.9369&lon=-76.6966
 
