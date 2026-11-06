@@ -1,4 +1,4 @@
-# Genera los iconos de Android y de la web a partir del logo (docs/Logo_Paty.png). No necesita instalar nada.
+# Genera los iconos del APK a partir del logo (docs/Logo_Paty.png); la web no se toca. No necesita instalar nada.
 # Uso, desde frontend/:  powershell -ExecutionPolicy Bypass -File scripts/generar-iconos.ps1
 Add-Type -AssemblyName System.Drawing
 
@@ -81,13 +81,6 @@ Get-ChildItem $res -Recurse -Filter 'splash.png' | ForEach-Object {
   $s = [single]([Math]::Min($w, $h) * 0.42)
   Draw-Logo $c.Graphics (($w - $s) / 2) (($h - $s) / 2) $s
   Save-Canvas $c $_.FullName
-}
-
-# --- Web: icono del navegador y de "añadir a inicio" ---
-foreach ($size in 192, 512) {
-  $c = New-Canvas $size $size
-  Draw-Logo $c.Graphics 0 0 $size
-  Save-Canvas $c (Join-Path $frontend "public\icon-$size.png")
 }
 
 $logo.Dispose()
