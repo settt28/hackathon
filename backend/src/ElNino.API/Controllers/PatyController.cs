@@ -120,6 +120,11 @@ public class PatyController(
         modeloRiesgo = riskModel.Model?.Meta,
     });
 
+    /// <summary>Conocimiento para responder sin conexión: con internet, la app lo guarda para tener los datos al día.</summary>
+    [HttpGet("offline")]
+    public async Task<IActionResult> Offline(CancellationToken ct) =>
+        Ok(await OfflineExport.KnowledgeAsync(HttpContext.RequestServices, ct));
+
     /// <summary>Solo el triaje (útil para probar la lista de palabras de alarma).</summary>
     [HttpPost("triaje")]
     public async Task<IActionResult> Triaje([FromBody] TriajeRequest req, CancellationToken ct) =>

@@ -23,6 +23,7 @@ export interface OfflineTip {
 }
 
 export interface OfflineKnowledge {
+  generatedAt: string
   keywords: { term: string; level: TriageLevel; emergencyType: EmergencyType }[]
   tips: OfflineTip[]
   enfen: { title: string; publishedAt: string; alertStatus: string; summary: string } | null
@@ -82,10 +83,26 @@ const hasAny = (text: string, terms: readonly string[]) => terms.some((t) => con
 // ---- Triaje (TriageService.cs) ----
 
 const LEVELS: TriageLevel[] = ['Leve', 'Moderado', 'Grave']
+const NEGATIONS = ['ya no', 'no tengo', 'no tiene', 'no hay', 'sin']
+const CRISIS_TERMS = ['matarme', 'suicid', 'quitarme la vida', 'no quiero vivir', 'hacerme dano']
+const QUESTION_STARTS = ['como ', 'cual ', 'que es ', 'que hacer', 'que debo hacer', 'que hago si', 'que pasa si', 'si hay', 'para prevenir']
+const CONTEXT_WORDS = ['prevenir', 'evitar', 'evito', 'hubo', 'ayer', 'hace anos', 'ano pasado', 'siempre', 'donar', 'analisis de', 'pelicula', 'simulacro']
+const URGENT_WORDS = ['ahora', 'ayuda', 'ayudo', 'auxilio', 'urgente', 'rapido']
+
+/** Crisis de salud mental: nunca se rebaja y recibe la línea especializada. */
+const isCrisis = (text: string) => hasAny(text, CRISIS_TERMS)
+
+/** Pregunta, hipótesis o hecho pasado: no es una emergencia en curso, salvo que pida ayuda urgente. */
+const isInformative = (text: string) =>
+  !hasAny(text, URGENT_WORDS) && (QUESTION_STARTS.some((s) => text.startsWith(s)) || hasAny(text, CONTEXT_WORDS))
 
 export function triage(message: string, knowledge: OfflineKnowledge): PatyReply['triage'] {
   const text = normalize(message)
-  const matches = knowledge.keywords.filter((k) => containsTerm(text, normalize(k.term)))
+  // "ya no sangra" o "no tengo fiebre" no cuentan como señal
+  const matches = knowledge.keywords.filter((k) => {
+    const term = normalize(k.term)
+    return containsTerm(text, term) && !NEGATIONS.some((n) => text.includes(`${n} ${term}`))
+  })
   if (matches.length === 0) return { level: 'Leve', emergencyType: null, phoneNumber: null, phoneLabel: null }
 
   const level = LEVELS[Math.max(...matches.map((m) => LEVELS.indexOf(m.level)))]
@@ -93,9 +110,11 @@ export function triage(message: string, knowledge: OfflineKnowledge): PatyReply[
   // Si hay señales médicas y de desastre al mismo nivel, prima la médica (la vida de la persona)
   const emergencyType: EmergencyType = top.some((m) => m.emergencyType === 'Medica') ? 'Medica' : 'Desastre'
   if (level !== 'Grave') return { level, emergencyType, phoneNumber: null, phoneLabel: null }
+  // Si no es una emergencia en curso baja a Moderado (sin cuenta regresiva), pero conserva el número para llamar
+  const finalLevel = isInformative(text) && !isCrisis(text) ? 'Moderado' : level
   return emergencyType === 'Medica'
-    ? { level, emergencyType, phoneNumber: '106', phoneLabel: 'SAMU – ambulancia' }
-    : { level, emergencyType, phoneNumber: '116', phoneLabel: 'Bomberos' }
+    ? { level: finalLevel, emergencyType, phoneNumber: '106', phoneLabel: 'SAMU – ambulancia' }
+    : { level: finalLevel, emergencyType, phoneNumber: '116', phoneLabel: 'Bomberos' }
 }
 
 // ---- Consejos (TipSearchService.cs) ----
@@ -118,7 +137,9 @@ function scoreTip(tip: OfflineTip, queryWords: string[]): number {
   const titleWords = words(`${tip.title} ${tip.topic}`)
   let score = 0
   for (const w of queryWords) {
-    if (keywords.some((k) => sameStem(k, w))) score += 3
+    // La palabra exacta pesa más: "agua" debe traer el consejo de agua, no el que menciona "agua estancada"
+    if (keywords.includes(w)) score += 5
+    else if (keywords.some((k) => sameStem(k, w))) score += 3
     if (titleWords.some((t) => sameStem(t, w))) score += 1
   }
   return score
@@ -217,6 +238,19 @@ const WARNING_WORDS = ['aviso', 'avisos', 'alertas', 'alerta meteorologica', 'al
 const HAZARD_WORDS = ['huaico', 'huayco', 'quebrada', 'lodo', 'piedras', 'inundacion', 'inunda', 'desborde', 'rio', 'crecida', 'lluvia', 'llueve', 'lluvias', 'aguacero', 'deslizamiento', 'derrumbe', 'cerro', 'dengue', 'zancudo', 'mosquito']
 const WEATHER_VOCABULARY = /\b(pronostico|clima|tiempo|temperatura|llovera|llover|va|hoy|manana|avisos?|alertas?|meteorologicas?|senamhi|consultar|cual|para)\b/g
 
+const NUMBER_WORDS = ['numero', 'numeros', 'telefono', 'telefonos', 'a quien llamo']
+const SERVICE_WORDS = ['bomberos', 'samu', 'ambulancia', 'policia', 'defensa civil', 'emergencia', 'emergencias']
+const GREETING_WORDS = ['hola', 'buenos dias', 'buenas tardes', 'buenas noches', 'gracias', 'ayuda', 'quien eres', 'que puedes hacer', 'que haces', 'tengo miedo']
+
+const NUMBERS_REPLY = 'Números de emergencia en el Perú: 106 SAMU (ambulancia), 116 Bomberos, 115 Defensa Civil y 105 Policía. El 911 funciona en Lima Metropolitana y Callao.'
+const GREETING_REPLY = 'Hola, soy Paty. Te ayudo a prepararte ante El Niño: tu salud, tu chacra, tu casa y las emergencias. Pregúntame, por ejemplo, "cómo evito el dengue" o "qué hago si viene un huaico". Si estás en peligro, cuéntame qué pasa o llama al 106 (SAMU) o al 116 (Bomberos).'
+const NEED_LOCATION_REPLY = 'Para decirte cuál es el más cercano necesito tu ubicación: actívala e inténtalo de nuevo. Si es urgente, llama al SAMU (106).'
+const SICK_WORDS = ['enfermo', 'enferma', 'me siento mal', 'se siente mal']
+const NO_CONTENT_WORDS = ['friaje', 'helada', 'heladas', 'sequia']
+const SICK_REPLY = 'Cuéntame qué síntomas hay (por ejemplo fiebre, diarrea o dificultad para respirar) para orientarte mejor. Si empeora o la persona no reacciona, llama al SAMU (106).'
+const NO_CONTENT_REPLY = 'Todavía no tengo información oficial sobre ese tema. Acércate a tu municipalidad o a tu centro de salud. Si es urgente, llama al SAMU (106).'
+const CRISIS_REPLY ='No tienes que pasar por esto sin ayuda. Llama ahora a la Línea 113 del MINSA y pide orientación en salud mental (gratuita, las 24 horas), o al SAMU (106). Si puedes, busca a alguien de confianza y quédate con esa persona.'
+
 const OFF_TOPIC = 'Solo puedo ayudarte con la prevención ante el Fenómeno El Niño: tu salud, tu chacra, tu casa y las emergencias.'
 const MEDICAL_FIRST_MEASURE = 'no dejes sola a la persona, mantenla en un lugar seguro y ventilado, y no le des medicamentos, comida ni bebida si está somnolienta o inconsciente.'
 
@@ -262,6 +296,47 @@ export function answerOffline(
   const district = coords && geo ? locate(geo.districts, coords.latitude, coords.longitude) : null
   const ubigeo = district?.u
   const offer911 = has911(ubigeo) && !medical
+  const location = district ? { district: district.n, province: district.p, department: district.d } : null
+
+  // ¿Pide los números de emergencia? Se dan directo, con sus botones
+  if (!grave && hasAny(text, NUMBER_WORDS) && hasAny(text, SERVICE_WORDS)) {
+    const call = (label: string, value: string): PatyAction => ({ type: 'llamar', label: `Llamar al ${value} (${label})`, value })
+    return {
+      reply: NUMBERS_REPLY,
+      location,
+      triage: tri,
+      tips: [],
+      zoneWarnings: [],
+      officialNotices: [],
+      nearestCenters: [],
+      actions: [
+        ...(has911(ubigeo) ? [call('Central Única de Emergencias', '911')] : []),
+        call('SAMU – ambulancia', '106'),
+        call('Bomberos', '116'),
+        call('Defensa Civil', '115'),
+        call('Policía', '105'),
+      ],
+      usedAi: false,
+      offline: true,
+    }
+  }
+
+  // Malestar sin síntomas concretos, o un tema sin contenido oficial: se orienta en vez de dar un consejo al azar
+  const sick = tri.level === 'Leve' && hasAny(text, SICK_WORDS)
+  if (sick || (!grave && hasAny(text, NO_CONTENT_WORDS))) {
+    return {
+      reply: sick ? SICK_REPLY : NO_CONTENT_REPLY,
+      location,
+      triage: tri,
+      tips: [],
+      zoneWarnings: [],
+      officialNotices: [],
+      nearestCenters: [],
+      actions: [{ type: 'llamar', label: 'Llamar al 106 (SAMU – ambulancia)', value: '106' }],
+      usedAi: false,
+      offline: true,
+    }
+  }
 
   // ¿Pregunta por su zona o su seguridad?
   const asksStatus = !grave && hasAny(text, STATUS_WORDS)
@@ -302,7 +377,7 @@ export function answerOffline(
   // Postas
   const wantsCenter = hasAny(text, CENTER_WORDS)
   const nearest =
-    coords && geo && (wantsCenter || (tri.level !== 'Leve' && medical))
+    coords && geo && district && (wantsCenter || (tri.level !== 'Leve' && medical))
       ? nearestCenters(geo.centers, coords.latitude, coords.longitude, 3, grave)
       : []
 
@@ -315,20 +390,25 @@ export function answerOffline(
       actions.push({ type: 'llamar', label: 'Llamar al 115 (Defensa Civil)', value: '115' })
       actions.push({ type: 'ver_zona_segura', label: 'Ver zona segura' })
     }
+  } else if (tri.phoneNumber) {
+    actions.push({ type: 'llamar', label: `Llamar al ${tri.phoneNumber} (${tri.phoneLabel})`, value: tri.phoneNumber })
   }
+  if (isCrisis(text)) actions.unshift({ type: 'llamar', label: 'Llamar al 113 (salud mental)', value: '113' })
   if (nearest.length > 0 || wantsCenter || (tri.level !== 'Leve' && medical)) {
     actions.push({ type: 'ver_centros', label: 'Ver centro de salud más cercano' })
   }
 
   // Texto
   const tipRefs: TipReference[] = tips.map((t) => ({ id: t.id, title: t.title, source: t.source, steps: t.steps, sourceUrl: t.sourceUrl }))
-  const reply = asksStatus
-    ? [statusAnswer(district, month), ...(tips[0] ? [`Para estar preparado:\n${numbered(tips[0].steps)}`] : [])].join('\n\n')
-    : templateReply({ grave, medical, moderate: tri.level === 'Moderado', phone: tri.phoneNumber, label: tri.phoneLabel, offer911, wantsCenter, nearest, tips, zoneWarnings, notices })
+  const reply = isCrisis(text)
+    ? CRISIS_REPLY
+    : asksStatus
+      ? [statusAnswer(district, month), ...(tips[0] ? [`Para estar preparado:\n${numbered(tips[0].steps)}`] : [])].join('\n\n')
+      : templateReply({ text, grave, medical, moderate: tri.level === 'Moderado', phone: tri.phoneNumber, label: tri.phoneLabel, offer911, wantsCenter, nearest, tips, zoneWarnings, notices })
 
   return {
     reply,
-    location: district ? { district: district.n, province: district.p, department: district.d } : null,
+    location,
     triage: tri,
     tips: tipRefs,
     zoneWarnings,
@@ -345,6 +425,7 @@ const oneDecimal = (km: number) => (Math.round(km * 10) / 10).toFixed(1)
 const numbered = (steps: string[]) => steps.slice(0, 3).map((s, i) => `${i + 1}. ${s}`).join('\n')
 
 function templateReply(o: {
+  text: string
   grave: boolean
   medical: boolean
   moderate: boolean
@@ -380,8 +461,13 @@ function templateReply(o: {
   }
 
   if (o.moderate && o.medical) lines.push('', 'Si los síntomas continúan o empeoran, acude a tu centro de salud.')
+  // Pregunta sobre un peligro grave: se responde, pero el número queda a mano por si está pasando ahora
+  if (!o.grave && o.phone) lines.push('', `Si está pasando ahora mismo, llama al ${o.phone} (${o.label}).`)
   for (const w of o.zoneWarnings) lines.push('', `📍 ${w}`)
   for (const n of o.notices) lines.push('', `📢 ${n}`)
 
-  return lines.length > 0 ? lines.join('\n').trim() : `${OFF_TOPIC} Si es urgente, llama al SAMU (106) o acércate a tu centro de salud.`
+  if (lines.length > 0) return lines.join('\n').trim()
+  if (o.wantsCenter) return NEED_LOCATION_REPLY
+  if (hasAny(o.text, GREETING_WORDS)) return GREETING_REPLY
+  return `${OFF_TOPIC} Si es urgente, llama al SAMU (106) o acércate a tu centro de salud.`
 }

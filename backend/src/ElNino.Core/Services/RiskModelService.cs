@@ -83,16 +83,26 @@ public class RiskModelService(
             .Any(e => string.CompareOrdinal(key, e![0]!.GetValue<string>()) >= 0 && string.CompareOrdinal(key, e[1]!.GetValue<string>()) <= 0);
     }
 
-    /// <summary>Predicciones para varios distritos en el mes indicado (por defecto, el actual en hora del Perú).</summary>
+    /// <summary>¿El último comunicado del ENFEN mantiene El Niño en alerta o vigilancia este mes?</summary>
+    public Task<bool> IsNinoNowAsync(CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow.AddHours(-5);
+        return IsNinoAsync(now.Year, now.Month, ct);
+    }
+
+    /// <summary>
+    /// Predicciones para varios distritos en el mes indicado (por defecto, el actual en hora del Perú).
+    /// <paramref name="assumeNino"/> fija la variable de El Niño; si es null, se decide con <see cref="IsNinoAsync"/>.
+    /// </summary>
     public async Task<IReadOnlyDictionary<string, RiskPrediction>> PredictAsync(
-        IEnumerable<string> ubigeos, int? year = null, int? month = null, CancellationToken ct = default)
+        IEnumerable<string> ubigeos, int? year = null, int? month = null, CancellationToken ct = default, bool? assumeNino = null)
     {
         if (model is null) return new Dictionary<string, RiskPrediction>();
         var now = DateTime.UtcNow.AddHours(-5);
         int y = year ?? now.Year, mo = month ?? now.Month;
         var idx = await GetIndexAsync(ct);
         var t = MonthIndex(y, mo);
-        var nino = await IsNinoAsync(y, mo, ct) ? 1.0 : 0.0;
+        var nino = (assumeNino ?? await IsNinoAsync(y, mo, ct)) ? 1.0 : 0.0;
 
         // Fracción de años previos (t-12, t-24, …, solo hasta donde llegan los datos) con emergencia en ese mes
         double Frac(HashSet<int>? set, int target)

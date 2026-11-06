@@ -1,0 +1,23 @@
+{
+  "emergencies": [
+    "no respira", "mi bebe no respira", "NO RESPIRA!!!", "no puede respirar", "no esta respirando", "le cuesta respirar", "se esta ahogando", "me ahogo", "se ahogó en el río",
+    "inconsciente", "inconciente", "no reacciona", "no responde", "no despierta", "se desmayó", "se ha desmayado", "esta desmayada", "desmallo", "se desmallo",
+    "convulsiona", "combulsiona", "tiene convulsiones", "esta convulsionando", "me duele el pecho", "dolor de pecho", "dolor en el pecho", "infarto", "paro cardiaco",
+    "esta sangrando mucho", "hemorragia", "vomita sangre", "lo mordio una serpiente", "picadura de serpiente", "se electrocuto", "le cayo un rayo", "quemadura grave",
+    "hay un huaico", "hay un huayco", "viene un huayco", "viene el huayco", "cayó un huayco", "baja un huaico", "se viene el huaico", "hay un aluvion", "un alud",
+    "se inundo mi casa", "se está inundando mi casa", "mi casa se inunda", "estamos inundados", "nos inundamos", "entra agua a mi casa", "el agua entra a mi casa",
+    "se desbordó el río", "se desborda el rio", "se cayo el cerro", "hay un deslizamiento", "derrumbe", "se derrumbo mi casa", "mi casa se cayo",
+    "estamos atrapados", "atrapado", "quedamos atrapados", "se lo llevó el río", "se lo llevo el agua", "hay un incendio", "se quema mi casa",
+    "tsunami", "temblor fuerte", "terremoto", "quiero matarme", "me quiero suicidar", "no quiero vivir",
+    "como hago, no respira, ayuda", "hubo un derrumbe ahora"
+  ],
+  "notEmergencies": [
+    "cómo prevenir un incendio", "qué hacer en un derrumbe", "qué hago si hay un derrumbe", "cómo evito un huaico", "qué hacer si queda atrapado alguien", "como detener el sangrado de una herida pequeña",
+    "quiero donar sangre", "me hice un análisis de sangre", "mi grupo de sangre", "estoy confundido con la app", "estoy confundido", "me dejó confundido el boletín", "tengo las manos frías",
+    "ya no sangra", "no tengo sangrado", "ayer hubo un incendio cerca", "hubo un derrumbe hace años", "la película atrapados", "mi calle se inunda siempre"
+  ],
+  "other": [
+    "hola", "gracias", "tengo miedo", "numero de bomberos", "dónde hay una posta", "que hago si llueve fuerte", "zika", "chikungunya", "colera", "agua",
+    "mi hijo esta enfermo", "friaje", "heladas", "sequia", "tengo fiebre", "mi hijo tiene diarrea", "cómo evito el dengue", "mi chacra", "mi ganado", "que llevo en mi mochila", "cuéntame un chiste"
+  ]
+}
