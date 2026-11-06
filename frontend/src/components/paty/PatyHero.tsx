@@ -2,7 +2,7 @@ import PatyLogo from './PatyLogo'
 
 interface PatyHeroProps {
   greeting: string
-  userName: string
+  userName?: string
 }
 
 /** Bloque de bienvenida: logo animado, saludo personalizado y descripción. */
@@ -11,7 +11,12 @@ export default function PatyHero({ greeting, userName }: PatyHeroProps) {
     <section className="flex flex-col items-center px-6 pt-8 text-center">
       <PatyLogo />
       <h2 className="mt-6 text-[26px] font-bold leading-tight text-white">
-        {greeting}, <span className="text-yellow-400">{userName}</span>
+        {greeting}
+        {userName && (
+          <>
+            , <span className="text-yellow-400">{userName}</span>
+          </>
+        )}
       </h2>
       <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-400">
         Tu asistente oficial para el pronóstico del tiempo, alertas y monitoreo ambiental en todo el Perú.

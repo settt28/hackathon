@@ -52,7 +52,7 @@ export default function Home() {
           details={
             <ul className="list-disc space-y-1 pl-5">
               <li>Identifica tu zona segura y ruta de evacuación.</li>
-              <li>Emergencias: 115 (Bomberos) · 116 (Defensa Civil).</li>
+              <li>Emergencias: 116 (Bomberos) · 115 (Defensa Civil) · 106 (SAMU).</li>
             </ul>
           }
           to="/infraestructura"

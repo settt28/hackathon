@@ -15,20 +15,27 @@ const CONFIG: Record<NetworkQuality, { label: string; bars: number; bar: string;
 // Alturas crecientes de las 4 barras de señal
 const BAR_HEIGHTS = ['h-1.5', 'h-2.5', 'h-3.5', 'h-5']
 
+// La simulación de estados solo existe en desarrollo; en producción el medidor es informativo
+const CAN_SIMULATE = import.meta.env.DEV
+
 /**
  * Medidor de calidad de red para la cabecera.
- * Toque/clic: simula el siguiente estado. Doble clic: vuelve a la red real.
+ * En desarrollo — toque/clic: simula el siguiente estado. Doble clic: vuelve a la red real.
  */
 export default function NetworkMeter() {
   const { quality, simulated, cycle, reset } = useNetworkStatus()
   const cfg = CONFIG[quality]
+  const Tag = CAN_SIMULATE ? 'button' : 'span'
 
   return (
-    <button
-      type="button"
-      onClick={cycle}
-      onDoubleClick={reset}
-      title={simulated ? 'Simulación activa (doble clic para volver a la red real)' : 'Toca para simular estados'}
+    <Tag
+      {...(CAN_SIMULATE && {
+        type: 'button' as const,
+        onClick: cycle,
+        onDoubleClick: reset,
+        title: simulated ? 'Simulación activa (doble clic para volver a la red real)' : 'Toca para simular estados',
+      })}
+      role={CAN_SIMULATE ? undefined : 'status'}
       aria-label={`Calidad de red: ${cfg.label}`}
       className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${cfg.badge}`}
     >
@@ -40,6 +47,6 @@ export default function NetworkMeter() {
       </span>
       <span>{cfg.label}</span>
       {simulated && <span className="text-[10px] font-normal opacity-70">(sim)</span>}
-    </button>
+    </Tag>
   )
 }

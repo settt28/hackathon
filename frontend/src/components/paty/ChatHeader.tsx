@@ -1,18 +1,19 @@
-import { ArrowLeft, BadgeCheck, EllipsisVertical, History, Sun } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, Sun } from 'lucide-react'
 
 interface ChatHeaderProps {
-  onBack?: () => void
+  onBack: () => void
 }
 
-// Botón de ícono reutilizable de la cabecera (área táctil de 44px)
-const iconButton =
-  'flex h-11 w-11 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400'
-
-/** Cabecera estilo app de mensajería: volver, avatar con anillo, nombre verificado y acciones. */
+/** Cabecera estilo app de mensajería: volver, avatar con anillo y nombre verificado. */
 export default function ChatHeader({ onBack }: ChatHeaderProps) {
   return (
-    <header className="flex items-center gap-2 border-b border-white/5 bg-[#0a1428] px-3 pb-3 pt-6">
-      <button type="button" onClick={onBack} aria-label="Volver" className={iconButton}>
+    <header className="flex items-center gap-2 border-b border-white/5 bg-[#0a1428] px-3 pb-3 pt-[max(1.5rem,env(safe-area-inset-top))]">
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label="Volver"
+        className="flex h-11 w-11 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400"
+      >
         <ArrowLeft className="h-6 w-6" strokeWidth={2.25} />
       </button>
 
@@ -25,18 +26,8 @@ export default function ChatHeader({ onBack }: ChatHeaderProps) {
 
       <h1 className="ml-2 flex items-center gap-1.5 text-xl font-bold text-white">
         Paty
-        {/* Check dorado de cuenta oficial */}
         <BadgeCheck className="h-6 w-6 fill-yellow-400 text-[#0a1428]" strokeWidth={2.25} aria-label="Cuenta oficial verificada" />
       </h1>
-
-      <div className="ml-auto flex items-center gap-1">
-        <button type="button" aria-label="Historial de conversaciones" className={iconButton}>
-          <History className="h-6 w-6" />
-        </button>
-        <button type="button" aria-label="Más opciones" className={iconButton}>
-          <EllipsisVertical className="h-6 w-6" />
-        </button>
-      </div>
     </header>
   )
 }
