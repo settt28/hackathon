@@ -79,7 +79,7 @@ const HistoryView: FC = () => {
 
   return (
     <DeviceFrame>
-      <main className="flex-1 overflow-y-auto pb-4 pt-4 sm:pt-1">
+      <main className="flex-1 overflow-y-auto pb-4 pt-4 xl:pt-1 tablet:px-[max(0px,calc((100%-48rem)/2))]">
         <HistoryHeader onBack={() => navigate('/')} />
 
         {state.kind === 'ok' ? (

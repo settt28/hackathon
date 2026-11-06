@@ -16,13 +16,13 @@ const EmergencyView: FC = () => {
 
   return (
     <DeviceFrame>
-      <main className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_at_50%_0%,rgba(239,68,68,0.06),transparent_55%)] pb-3 pt-4 sm:pt-1">
+      <main className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_at_50%_0%,rgba(239,68,68,0.06),transparent_55%)] pb-3 pt-4 xl:pt-1 tablet:px-[max(0px,calc((100%-56rem)/2))]">
         <EmergencyHeader onBack={() => navigate('/')} />
         <EmergencyHero />
         <Call911Banner />
 
-        {/* Con un número impar de líneas, la última ocupa todo el ancho */}
-        <div className="mx-4 mt-4 grid grid-cols-2 gap-3.5 [&>*:last-child:nth-child(odd)]:col-span-2">
+        {/* Con un número impar de líneas, la última ocupa todo el ancho. En tablet: hasta 3 por fila, y las de la última fila se reparten el ancho */}
+        <div className="mx-4 mt-4 grid grid-cols-2 gap-3.5 [&>*:last-child:nth-child(odd)]:col-span-2 tablet:flex tablet:flex-wrap tablet:[&>*]:min-w-[30%] tablet:[&>*]:flex-1">
           {EMERGENCY_SERVICES.map((service) => (
             <ServiceCard key={service.id} service={service} />
           ))}

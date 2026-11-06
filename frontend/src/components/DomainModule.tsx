@@ -62,7 +62,7 @@ function AlertCard({ alert, location, tips }: { alert: Alert; location: UserLoca
             type="button"
             onClick={() => setShowTips((s) => !s)}
             aria-expanded={showTips}
-            className="mt-3 text-sm font-semibold text-sky-700 dark:text-cyan-300 hover:underline"
+            className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-sky-700 dark:text-cyan-300 hover:underline xl:mt-3 xl:min-h-0"
           >
             {showTips ? 'Ocultar' : 'Qué hacer'}
           </button>

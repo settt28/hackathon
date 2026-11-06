@@ -47,7 +47,7 @@ const RiskMapSheet: FC<RiskMapSheetProps> = ({ open, onClose, onViewHistory, sta
         role="dialog"
         aria-modal="true"
         aria-labelledby="riesgo-titulo"
-        className="relative max-h-[94%] overflow-y-auto rounded-t-[2rem] border-t border-slate-200 bg-white px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl motion-safe:animate-sheet-up dark:border-cyan-400/20 dark:bg-[#0b1a26]"
+        className="relative max-h-[94%] overflow-y-auto rounded-t-[2rem] tablet:mx-auto tablet:w-full tablet:max-w-2xl border-t border-slate-200 bg-white px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl motion-safe:animate-sheet-up dark:border-cyan-400/20 dark:bg-[#0b1a26]"
       >
         {/* Asa de arrastre (visual) */}
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-white/20" aria-hidden />

@@ -57,11 +57,11 @@ export default function SummaryCard({ title, icon: Icon, iconClassName, risk, su
           type="button"
           onClick={() => setExpanded((e) => !e)}
           aria-expanded={expanded}
-          className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+          className="inline-flex min-h-11 items-center text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white xl:min-h-0"
         >
           {expanded ? 'Ver menos' : 'Ver más'}
         </button>
-        <Link to={to} className="text-sm font-semibold text-sky-700 dark:text-cyan-300 hover:underline">
+        <Link to={to} className="inline-flex min-h-11 items-center text-sm font-semibold text-sky-700 dark:text-cyan-300 hover:underline xl:min-h-0">
           Ir al módulo →
         </Link>
       </div>

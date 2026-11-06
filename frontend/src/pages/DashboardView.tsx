@@ -38,20 +38,35 @@ const DashboardView: FC = () => {
   return (
     <DeviceFrame>
       {/* Fondo: leve resplandor cian superior + silueta del Perú detrás del contenido */}
-      <main className="relative flex-1 overflow-y-auto overflow-x-hidden bg-[radial-gradient(ellipse_at_50%_0%,rgba(34,211,238,0.08),transparent_55%)] pb-1 pt-4 sm:pt-1">
+      <main className="relative flex-1 overflow-y-auto overflow-x-hidden bg-[radial-gradient(ellipse_at_50%_0%,rgba(34,211,238,0.08),transparent_55%)] pb-1 pt-4 xl:pt-1">
         <PeruSilhouette />
 
 <div className="relative">
           <Header />
-          <StatusBadge {...status} />
 
-          <div className="mt-4 flex flex-col gap-4 px-4 sm:gap-3">
-            <MapCard state={risk.state} retry={risk.retry} onExpand={() => setRiskOpen(true)} />
-            <HistoryButton onClick={() => navigate('/historial')} />
-            <AssistantCard onOpenChat={() => navigate('/paty')} onVoice={() => navigate('/paty', { state: { call: true } })} />
+          {/* Tablet: el mapa a la derecha y el resto a la izquierda. La última fila absorbe el alto que sobra. */}
+          <div className="tablet:mx-auto tablet:mt-2 tablet:grid tablet:max-w-5xl tablet:grid-cols-2 tablet:grid-rows-[auto_auto_auto_1fr] tablet:gap-x-6 tablet:gap-y-4 tablet:px-6">
+            <div className="tablet:col-start-1">
+              <StatusBadge {...status} />
+            </div>
+
+            <div className="mt-4 flex flex-col gap-4 px-4 xl:gap-3 tablet:contents">
+              <div className="tablet:col-start-2 tablet:row-span-4 tablet:row-start-1">
+                <MapCard state={risk.state} retry={risk.retry} onExpand={() => setRiskOpen(true)} />
+              </div>
+              <div className="tablet:col-start-1">
+                <HistoryButton onClick={() => navigate('/historial')} />
+              </div>
+              <div className="tablet:col-start-1">
+                <AssistantCard onOpenChat={() => navigate('/paty')} onVoice={() => navigate('/paty', { state: { call: true } })} />
+              </div>
+            </div>
+
+            {/* Con poca altura el SOS queda fijo en pantalla: este espacio evita que tape lo último al desplazarse */}
+            <div className="tablet:col-start-1 short:h-28">
+              <SOSFooter onPress={() => navigate('/emergencia')} />
+            </div>
           </div>
-
-          <SOSFooter onPress={() => navigate('/emergencia')} />
         </div>
       </main>
 

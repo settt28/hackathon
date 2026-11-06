@@ -7,7 +7,7 @@ interface SOSFooterProps {
 
 /** Botón de emergencia SOS: halo fijo + ondas rojas continuas para que sea lo más visible de la pantalla. */
 const SOSFooter: FC<SOSFooterProps> = ({ onPress }) => (
-  <footer className="flex flex-col items-center pb-3 pt-7 sm:pt-5">
+  <footer className="flex flex-col items-center pb-3 pt-7 xl:pt-5 short:fixed short:bottom-4 short:left-[max(1rem,env(safe-area-inset-left))] short:z-40 short:p-0">
     <div className="relative flex h-[84px] w-[84px] items-center justify-center">
       <span className="absolute -inset-3 rounded-full bg-red-500/15 dark:bg-red-500/20" aria-hidden />
       <span className="absolute inset-0 rounded-full bg-red-500/40 motion-safe:animate-pulse-ring" aria-hidden />
@@ -22,7 +22,7 @@ const SOSFooter: FC<SOSFooterProps> = ({ onPress }) => (
         <span className="text-[11px] font-black leading-none tracking-wider">SOS</span>
       </button>
     </div>
-    <p className="mt-5 text-xs font-extrabold tracking-[0.2em] text-red-600 dark:text-red-400">PRESIONA PARA EMERGENCIA</p>
+    <p className="mt-5 text-xs font-extrabold tracking-[0.2em] text-red-600 short:hidden dark:text-red-400">PRESIONA PARA EMERGENCIA</p>
   </footer>
 )
 

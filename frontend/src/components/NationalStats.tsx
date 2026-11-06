@@ -86,7 +86,7 @@ export default function NationalStats() {
                 aria-checked={metric === m.id}
                 onClick={() => setMetric(m.id)}
                 className={clsx(
-                  'rounded-full px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500',
+                  'rounded-full px-3 py-3 text-xs font-semibold transition-colors xl:py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500',
                   metric === m.id
                     ? 'bg-sky-600 text-white dark:bg-cyan-400 dark:text-[#070d17]'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10',
@@ -99,13 +99,18 @@ export default function NationalStats() {
         </div>
 
         <ol className="mt-5 flex h-44 items-end gap-2 border-b border-slate-200 pb-0 dark:border-white/10" aria-label={`${metricLabel} por año`}>
-          {years.map((y) => {
+          {years.map((y, i) => {
             const v = y.resumen[metric]
             const partial = y.anio === partialYear
             return (
               <li key={y.anio} className="group relative flex h-full flex-1 flex-col justify-end">
-                {/* Tooltip al pasar el cursor o al enfocar la barra */}
-                <span className="pointer-events-none absolute -top-1 left-1/2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-xs text-white opacity-0 shadow transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 dark:bg-white dark:text-slate-900">
+                {/* Tooltip al pasar el cursor o al enfocar la barra. Hasta xl crece hacia el centro del gráfico, para no salirse de la pantalla */}
+                <span
+                  className={clsx(
+                    'pointer-events-none absolute -top-1 z-10 -translate-y-full whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-xs text-white opacity-0 shadow transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 xl:left-1/2 xl:right-auto xl:-translate-x-1/2 dark:bg-white dark:text-slate-900',
+                    i < years.length / 2 ? 'left-0' : 'right-0',
+                  )}
+                >
                   {y.anio}: {fmt.format(v)} {metricLabel}
                   {partial && ' (parcial)'}
                 </span>

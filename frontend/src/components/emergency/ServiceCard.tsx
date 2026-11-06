@@ -33,7 +33,7 @@ const ServiceCard: FC<ServiceCardProps> = ({ service }) => {
 
       <p className={clsx('mt-4 text-[34px] font-extrabold leading-none tracking-tight', theme.number)}>{service.number}</p>
       <h2 className="mt-1 text-[15px] font-bold text-slate-900 dark:text-white">{service.name}</h2>
-      <p className="text-xs text-slate-500 dark:text-slate-300">{service.description}</p>
+      <p className="text-xs text-slate-500 tablet:flex-1 dark:text-slate-300">{service.description}</p>
 
       <a
         href={`tel:${service.number}`}

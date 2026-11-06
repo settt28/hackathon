@@ -89,7 +89,7 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
   return (
     <div className="h-[100dvh] bg-slate-200 antialiased dark:bg-[#1f1f22]">
       {/* En desktop se centra como una app móvil; en móvil ocupa todo el ancho. Fondos iguales al dashboard */}
-      <div className="relative mx-auto flex h-full max-w-md flex-col overflow-hidden bg-[#f4f7fb] md:border-x md:border-slate-200 dark:bg-[#070d17] dark:md:border-cyan-400/15">
+      <div className="relative mx-auto flex h-full max-w-md flex-col overflow-hidden tablet:max-w-3xl bg-[#f4f7fb] md:border-x md:border-slate-200 dark:bg-[#070d17] dark:md:border-cyan-400/15">
         <ChatHeader onBack={goBack} />
 
         {/* Textura sutil de puntos (como el dashboard) */}

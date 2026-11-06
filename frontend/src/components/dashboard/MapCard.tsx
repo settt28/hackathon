@@ -8,7 +8,7 @@ const MIN_ZOOM = 1
 const MAX_ZOOM = 3
 
 const zoomButton =
-  'flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-sky-300 hover:text-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 disabled:opacity-40 dark:border-white/15 dark:bg-[#0d1828]/90 dark:text-white dark:shadow-none dark:hover:border-cyan-400/50 dark:hover:text-cyan-300 dark:focus-visible:ring-cyan-400'
+  'flex h-10 w-10 items-center justify-center rounded-md border xl:h-7 xl:w-7 border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-sky-300 hover:text-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 disabled:opacity-40 dark:border-white/15 dark:bg-[#0d1828]/90 dark:text-white dark:shadow-none dark:hover:border-cyan-400/50 dark:hover:text-cyan-300 dark:focus-visible:ring-cyan-400'
 
 /**
  * Tarjeta de ubicación en vivo: distritos alrededor del usuario coloreados por nivel de riesgo estimado.
@@ -26,7 +26,7 @@ const MapCard: FC<{ state: RiskMapState; retry: () => void; onExpand: () => void
   return (
     <section
       aria-label="Mapa de riesgo de tu zona"
-      className="relative h-80 overflow-hidden rounded-3xl border border-slate-200 bg-[#e9f3fa] shadow-sm dark:border-cyan-400/25 dark:bg-[#0a1524]/60 dark:shadow-none"
+      className="relative h-80 overflow-hidden rounded-3xl tablet:h-[clamp(20rem,calc(100dvh-8rem),36rem)] border border-slate-200 bg-[#e9f3fa] shadow-sm dark:border-cyan-400/25 dark:bg-[#0a1524]/60 dark:shadow-none"
     >
       <div className="absolute inset-0 bg-map-grid" aria-hidden />
 
@@ -113,7 +113,7 @@ const MapCard: FC<{ state: RiskMapState; retry: () => void; onExpand: () => void
           </div>
 
           {/* Zoom */}
-          <div className="absolute right-4 top-[30%] flex flex-col gap-1.5">
+          <div className="absolute right-4 top-[24%] flex flex-col gap-1.5 xl:top-[30%]">
             <button type="button" aria-label="Acercar mapa" onClick={() => changeZoom(0.5)} disabled={zoom >= MAX_ZOOM} className={zoomButton}>
               <Plus className="h-4 w-4" />
             </button>

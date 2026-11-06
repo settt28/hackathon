@@ -6,6 +6,12 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      // Tablet y celular en horizontal. Con tope superior: estas clases nunca afectan a la laptop (desde 1280 px)
+      screens: {
+        tablet: { raw: '(min-width: 640px) and (max-width: 1279.98px)' },
+        // Poca altura (celular en horizontal): lo vital tiene que seguir a la vista
+        short: { raw: '(max-height: 500px) and (max-width: 1279.98px)' },
+      },
       // Inter como fuente principal (con las fuentes del sistema como respaldo)
       fontFamily: {
         sans: ['"Inter Variable"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
