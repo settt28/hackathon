@@ -22,7 +22,7 @@ const ConnectionChip: FC = () => {
     <span
       role="status"
       className={clsx(
-        'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold',
+        'flex items-center gap-2 rounded-full border px-3 py-1 text-[13px] font-semibold',
         online
           ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-400/10 dark:text-emerald-300'
           : 'border-slate-300 bg-slate-100 text-slate-500 dark:border-white/15 dark:bg-white/5 dark:text-slate-400',

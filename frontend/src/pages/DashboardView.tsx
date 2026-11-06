@@ -7,6 +7,7 @@ import MapCard from '../components/dashboard/MapCard'
 import HistoryButton from '../components/dashboard/HistoryButton'
 import AssistantCard from '../components/dashboard/AssistantCard'
 import SOSFooter from '../components/dashboard/SOSFooter'
+import PeruSilhouette from '../components/dashboard/PeruSilhouette'
 
 /**
  * Pantalla principal "PATY SEGURA".
@@ -17,18 +18,22 @@ const DashboardView: FC = () => {
 
   return (
     <DeviceFrame>
-      {/* Fondo con leve resplandor cian en la parte superior */}
-      <main className="flex-1 overflow-y-auto bg-[radial-gradient(ellipse_at_50%_0%,rgba(34,211,238,0.08),transparent_55%)] pb-1 pt-4 sm:pt-0">
-        <Header />
-        <StatusBadge level={3} />
+      {/* Fondo: leve resplandor cian superior + silueta del Perú detrás del contenido */}
+      <main className="relative flex-1 overflow-y-auto overflow-x-hidden bg-[radial-gradient(ellipse_at_50%_0%,rgba(34,211,238,0.08),transparent_55%)] pb-1 pt-4 sm:pt-1">
+        <PeruSilhouette />
 
-        <div className="mt-4 flex flex-col gap-3 px-4">
-          <MapCard address="Av. Paseo de la Reforma 222" gpsLabel="GPS Óptimo" />
-          <HistoryButton />
-          <AssistantCard onOpenChat={() => navigate('/paty')} onVoice={() => navigate('/paty')} />
+        <div className="relative">
+          <Header />
+          <StatusBadge zoneLabel="ZONA SEGURA" message="¡Te encuentras protegido!" />
+
+          <div className="mt-4 flex flex-col gap-4 px-4 sm:gap-3">
+            <MapCard address="Av. Paseo de la Reforma 222" gpsLabel="GPS Óptimo" />
+            <HistoryButton />
+            <AssistantCard onOpenChat={() => navigate('/paty')} onVoice={() => navigate('/paty')} />
+          </div>
+
+          <SOSFooter />
         </div>
-
-        <SOSFooter />
       </main>
     </DeviceFrame>
   )
