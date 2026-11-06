@@ -1,4 +1,4 @@
-import type { FC } from 'react'
+import { useState, type FC } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DeviceFrame from '../layouts/DeviceFrame'
 import Header from '../components/dashboard/Header'
@@ -8,6 +8,7 @@ import HistoryButton from '../components/dashboard/HistoryButton'
 import AssistantCard from '../components/dashboard/AssistantCard'
 import SOSFooter from '../components/dashboard/SOSFooter'
 import PeruSilhouette from '../components/dashboard/PeruSilhouette'
+import RiskMapSheet from '../components/riskmap/RiskMapSheet'
 
 /**
  * Pantalla principal "PATY SEGURA".
@@ -15,6 +16,8 @@ import PeruSilhouette from '../components/dashboard/PeruSilhouette'
  */
 const DashboardView: FC = () => {
   const navigate = useNavigate()
+  // Pop-up del mapa de riesgo
+  const [riskOpen, setRiskOpen] = useState(false)
 
   return (
     <DeviceFrame>
@@ -27,7 +30,7 @@ const DashboardView: FC = () => {
           <StatusBadge zoneLabel="ZONA SEGURA" message="¡Te encuentras protegido!" />
 
           <div className="mt-4 flex flex-col gap-4 px-4 sm:gap-3">
-            <MapCard address="Av. Paseo de la Reforma 222" gpsLabel="GPS Óptimo" />
+            <MapCard address="Av. Paseo de la Reforma 222" gpsLabel="GPS Óptimo" onExpand={() => setRiskOpen(true)} />
             <HistoryButton onClick={() => navigate('/historial')} />
             <AssistantCard onOpenChat={() => navigate('/paty')} onVoice={() => navigate('/paty')} />
           </div>
@@ -35,6 +38,14 @@ const DashboardView: FC = () => {
           <SOSFooter onPress={() => navigate('/emergencia')} />
         </div>
       </main>
+
+      {/* Se dibuja sobre toda la pantalla del teléfono (dentro del marco) */}
+      <RiskMapSheet
+        open={riskOpen}
+        onClose={() => setRiskOpen(false)}
+        onViewHistory={() => navigate('/historial')}
+        zoneName="San Luis, Lima"
+      />
     </DeviceFrame>
   )
 }

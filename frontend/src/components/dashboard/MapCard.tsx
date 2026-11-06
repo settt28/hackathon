@@ -1,9 +1,11 @@
 import { useState, type FC } from 'react'
-import { MapPin, Minus, Navigation2, Plus, RefreshCcw } from 'lucide-react'
+import { MapPin, Maximize2, Minus, Navigation2, Plus, RefreshCcw } from 'lucide-react'
 
 interface MapCardProps {
   address: string
   gpsLabel: string
+  /** Abre el mapa de riesgo a pantalla completa (tocando el mapa o el botón de expandir). */
+  onExpand?: () => void
 }
 
 const MIN_ZOOM = 0.8
@@ -17,7 +19,7 @@ const zoomButton =
  * En modo oscuro es translúcida para dejar ver la silueta del Perú del fondo.
  * El zoom solo escala la capa del mapa; el marcador del usuario queda centrado.
  */
-const MapCard: FC<MapCardProps> = ({ address, gpsLabel }) => {
+const MapCard: FC<MapCardProps> = ({ address, gpsLabel, onExpand }) => {
   const [zoom, setZoom] = useState(1)
   const changeZoom = (delta: number) => setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, +(z + delta).toFixed(1))))
 
@@ -34,6 +36,9 @@ const MapCard: FC<MapCardProps> = ({ address, gpsLabel }) => {
         <div className="absolute inset-y-0 left-[46%] w-3 bg-white/70 dark:hidden" />
         <div className="absolute inset-x-0 top-[58%] h-3 bg-white/70 dark:hidden" />
       </div>
+
+      {/* NUEVO: tocar cualquier parte libre del mapa abre el mapa de riesgo */}
+      <button type="button" onClick={onExpand} aria-label="Abrir mapa de riesgo de tu zona" className="absolute inset-0 cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:focus-visible:ring-cyan-400" />
 
       {/* Encabezado: dirección + estado del GPS (franja blanca en modo claro) */}
       <div className="relative flex items-start justify-between gap-2 border-b border-slate-100 bg-white px-3.5 pb-2 pt-3.5 dark:border-transparent dark:bg-transparent">
@@ -52,18 +57,26 @@ const MapCard: FC<MapCardProps> = ({ address, gpsLabel }) => {
         </span>
       </div>
 
-      {/* Controles de zoom */}
-      <div className="absolute right-3 top-[70px] flex flex-col gap-2">
+      {/* Controles: zoom + NUEVO botón de pantalla completa */}
+      <div className="absolute right-3 top-[62px] flex flex-col gap-1.5">
         <button type="button" aria-label="Acercar mapa" onClick={() => changeZoom(0.2)} disabled={zoom >= MAX_ZOOM} className={zoomButton}>
           <Plus className="h-4 w-4" />
         </button>
         <button type="button" aria-label="Alejar mapa" onClick={() => changeZoom(-0.2)} disabled={zoom <= MIN_ZOOM} className={zoomButton}>
           <Minus className="h-4 w-4" />
         </button>
+        <button
+          type="button"
+          aria-label="Ver mapa de riesgo en pantalla completa"
+          onClick={onExpand}
+          className={`${zoomButton} !border-cyan-400/50 !text-cyan-600 dark:!text-cyan-300`}
+        >
+          <Maximize2 className="h-3.5 w-3.5" />
+        </button>
       </div>
 
       {/* Marcador del usuario: el círculo queda en el centro exacto de la tarjeta; la etiqueta va debajo */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+      <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
         <div className="relative flex h-12 w-12 items-center justify-center">
           <span className="absolute -inset-4 rounded-full bg-cyan-400/15" aria-hidden />
           <span className="absolute inset-0 rounded-full bg-cyan-400/40 motion-safe:animate-pulse-ring" aria-hidden />
