@@ -30,7 +30,7 @@ export default function CallOverlay({ state, heard, said, error, onHangUp, onClo
       role="dialog"
       aria-modal="true"
       aria-label="Llamada con Paty"
-      className="absolute inset-0 z-40 flex flex-col items-center bg-gradient-to-b from-[#f4f7fb] to-sky-100 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] text-center dark:from-[#070d17] dark:to-[#0b1d2c]"
+      className="absolute inset-0 z-40 flex flex-col items-center bg-gradient-to-b from-[#f4f7fb] to-sky-100 px-6 pb-6 pt-8 text-center dark:from-[#070d17] dark:to-[#0b1d2c]"
     >
       <p className="text-xs font-bold tracking-[0.18em] text-sky-700 dark:text-cyan-300">LLAMADA CON PATY</p>
 

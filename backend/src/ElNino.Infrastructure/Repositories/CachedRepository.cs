@@ -18,7 +18,15 @@ namespace ElNino.Infrastructure.Repositories;
 /// </summary>
 public class CachedRepository<T>(AppDbContext db, IMemoryCache cache) : EfRepository<T>(db) where T : BaseEntity
 {
-    private static readonly string CacheKey = $"tabla:{typeof(T).FullName}";
+    private static readonly string CacheKey = KeyFor<T>();
+
+    private static string KeyFor<TEntity>() => $"tabla:{typeof(TEntity).FullName}";
+
+    /// <summary>
+    /// Descarta la copia en memoria de una tabla. Lo usan los importadores, que escriben directo en la base de datos:
+    /// sin esto, tras reimportar distritos o historial el servidor seguiría respondiendo con los datos viejos hasta reiniciar.
+    /// </summary>
+    public static void Invalidate<TEntity>(IMemoryCache cache) where TEntity : BaseEntity => cache.Remove(KeyFor<TEntity>());
 
     public override async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken ct = default)
     {

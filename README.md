@@ -189,6 +189,12 @@ curl -X POST "http://localhost:5261/api/sms/entrante" -H "X-Api-Key: TU_CLAVE_SM
   búsquedas, campos de alertas y boletines (enlaces solo `http(s)`). La voz solo acepta formatos de audio conocidos.
 - **Tamaño y cabeceras:** cuerpo máximo de 1 MB (10 MB para voz), cabeceras de seguridad, CSP en `/api` y HSTS en
   producción.
+- **Caché de respuestas:** `Cache-Control: private` en las lecturas. Muchas URLs llevan las coordenadas de la persona y
+  nunca deben quedar en cachés compartidos (CDN, proxies). Reimportar datos desde `/api/admin` renueva la memoria al instante.
+- **Web (frontend):** Content-Security-Policy en el build (`npm run build`): solo scripts propios y conexiones a este origen,
+  al backend de `VITE_API_URL` y a los mosaicos del mapa. El APK se compila con `npm run apk` (sin esa CSP, que bloquearía
+  el puente nativo de Capacitor). Al publicar la web, agrega por HTTP `frame-ancestors 'none'` y HSTS.
+- **APK:** sin respaldo automático de los datos de la app (`allowBackup="false"`) y el FileProvider solo expone su caché.
 
 ## Modo sin conexión
 

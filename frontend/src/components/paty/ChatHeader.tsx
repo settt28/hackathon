@@ -8,7 +8,7 @@ interface ChatHeaderProps {
 
 /** Cabecera estilo app de mensajería: volver, avatar con el logo de Paty y nombre verificado. */
 const ChatHeader: FC<ChatHeaderProps> = ({ onBack }) => (
-  <header className="border-b border-slate-200 bg-white px-3 pb-3 pt-[max(1.5rem,env(safe-area-inset-top))] dark:border-cyan-400/15 dark:bg-[#070d17] @3xl:px-6 @3xl:pt-4">
+  <header className="border-b border-slate-200 bg-white px-3 pb-3 pt-4 dark:border-cyan-400/15 dark:bg-[#070d17] @3xl:px-6 @3xl:pt-4">
     {/* En pantallas anchas el contenido se alinea con la columna de la conversación */}
     <div className="mx-auto flex max-w-3xl items-center gap-2">
       <button

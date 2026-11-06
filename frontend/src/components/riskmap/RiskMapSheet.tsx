@@ -46,7 +46,9 @@ const RiskMapSheet: FC<RiskMapSheetProps> = ({ open, onClose, onViewHistory, sta
 
   return (
     // Móvil: hoja inferior. Tablet/PC (@3xl): ventana centrada con el mapa y el detalle lado a lado
-    <div className="absolute inset-0 z-50 flex flex-col justify-end @3xl:items-center @3xl:justify-center @3xl:p-8">
+    <div
+      // Fondo oscuro sobre toda la pantalla (también detrás de las barras del celular); la hoja empieza bajo la barra de estado
+      className="absolute inset-0 z-50 flex flex-col justify-end pt-[var(--safe-top)] @3xl:items-center @3xl:justify-center @3xl:p-8 @3xl:pt-[calc(2rem+var(--safe-top))]">
       {/* Fondo oscuro: tocarlo cierra el pop-up */}
       <button type="button" aria-label="Cerrar mapa de riesgo" onClick={onClose} className="absolute inset-0 bg-slate-950/60 motion-safe:animate-fade-in" tabIndex={-1} />
 
@@ -54,7 +56,7 @@ const RiskMapSheet: FC<RiskMapSheetProps> = ({ open, onClose, onViewHistory, sta
         role="dialog"
         aria-modal="true"
         aria-labelledby="riesgo-titulo"
-        className="@container relative max-h-[94%] overflow-y-auto rounded-t-[2rem] border-t border-slate-200 bg-white px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl motion-safe:animate-sheet-up dark:border-cyan-400/20 dark:bg-[#0b1a26] @3xl:max-h-full @3xl:w-full @3xl:max-w-5xl @3xl:rounded-[2rem] @3xl:border @3xl:px-6 @3xl:pb-6 @3xl:pt-5 @3xl:motion-safe:animate-[alert-in_.25s_ease-out]"
+        className="@container relative max-h-[94%] overflow-y-auto rounded-t-[2rem] border-t border-slate-200 bg-white px-4 pb-[max(1.5rem,var(--safe-bottom))] pt-2 shadow-2xl motion-safe:animate-sheet-up dark:border-cyan-400/20 dark:bg-[#0b1a26] @3xl:max-h-full @3xl:w-full @3xl:max-w-5xl @3xl:rounded-[2rem] @3xl:border @3xl:px-6 @3xl:pb-6 @3xl:pt-5 @3xl:motion-safe:animate-[alert-in_.25s_ease-out]"
       >
         {/* Asa de arrastre (visual, solo en la hoja inferior del móvil) */}
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-white/20 @2xl:hidden" aria-hidden />

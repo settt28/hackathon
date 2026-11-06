@@ -2,7 +2,6 @@ import type { FC, ReactNode } from 'react'
 import { BatteryFull, Signal, Wifi } from 'lucide-react'
 import clsx from 'clsx'
 import { useDevicePreview } from '../hooks/useDevicePreview'
-import OfflineBanner from '../components/OfflineBanner'
 
 interface DeviceFrameProps {
   children: ReactNode
@@ -32,7 +31,9 @@ const DeviceFrame: FC<DeviceFrameProps> = ({ children }) => {
         // data-framed + group/frame: las pantallas ajustan detalles solo dentro del marco (p. ej. el espacio bajo la barra "9:41")
         data-framed={framed}
         className={clsx(
-          'group/frame @container relative flex h-[100dvh] w-full flex-col overflow-hidden bg-[#f4f7fb] transition-colors dark:bg-[#070d17]',
+          // Padding = zonas seguras del celular: nada queda debajo de la barra de estado ni de la barra de navegación/gestos.
+          // El fondo de la pantalla sí se pinta detrás de ellas, así se ven del mismo color que la app.
+          'group/frame @container relative flex h-[100dvh] w-full flex-col overflow-hidden bg-[#f4f7fb] pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)] pt-[var(--safe-top)] transition-colors dark:bg-[#070d17]',
           framed &&
             'sm:h-[892px] sm:max-h-[calc(100dvh-3rem)] sm:w-[390px] sm:rounded-[2.75rem] sm:border-[3px] sm:border-slate-300 sm:shadow-[0_0_0_6px_#ffffff,0_30px_80px_rgba(15,23,42,0.25)] dark:sm:border-[#7c6cf0] dark:sm:shadow-[0_0_0_6px_#0b0b10,0_30px_80px_rgba(0,0,0,0.6)]',
         )}
@@ -48,9 +49,6 @@ const DeviceFrame: FC<DeviceFrameProps> = ({ children }) => {
             </span>
           </div>
         )}
-
-        {/* "No conectado": ocupa su propia fila, así nunca tapa la cabecera de la pantalla */}
-        <OfflineBanner />
 
         {children}
 

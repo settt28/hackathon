@@ -1,6 +1,9 @@
+using ElNino.Core.Entities;
 using ElNino.Core.Services;
 using ElNino.Infrastructure.Persistence;
+using ElNino.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace ElNino.Infrastructure.Import;
@@ -14,8 +17,12 @@ public class DataImportService(
     DataImportOptions options,
     DistrictImporter districts,
     SinpadImporter sinpad,
+    IMemoryCache cache,
     ILogger<DataImportService> logger)
 {
+    /// <summary>Claves de caché de las estadísticas nacionales (EstadisticasController: "estadisticas:{años}", 1 a 15).</summary>
+    private static IEnumerable<string> StatsKeys => Enumerable.Range(1, 15).Select(n => $"estadisticas:{n}");
+
     public async Task<int> ImportDistrictsAsync(CancellationToken ct = default)
     {
         var path = options.Resolve(options.DistrictsGeoJsonPath);
@@ -24,6 +31,9 @@ public class DataImportService(
         var count = await districts.ImportAsync(path, ct);
         logger.LogInformation("Distritos importados: {Count}", count);
         await AssignHealthCenterDistrictsAsync(ct);
+        // Distritos y postas (su distrito cambió) se vuelven a leer de la base en la próxima petición
+        CachedRepository<District>.Invalidate<District>(cache);
+        CachedRepository<HealthCenter>.Invalidate<HealthCenter>(cache);
         return count;
     }
 
@@ -42,6 +52,10 @@ public class DataImportService(
         }
 
         var r = await sinpad.ImportAsync(zipPath, options.HistoryMinYear, ct);
+        // El historial nuevo se ve al instante: tabla en memoria y estadísticas nacionales (caché de 1 h) fuera
+        CachedRepository<HistoricalEvent>.Invalidate<HistoricalEvent>(cache);
+        CachedRepository<District>.Invalidate<District>(cache); // el importador completa la región natural de cada distrito
+        foreach (var key in StatsKeys) cache.Remove(key);
         logger.LogInformation("Historial {Source}: {Imported} eventos importados ({Min}–{Max}) de {Read} registros leídos",
             r.Source, r.Imported, r.MinYear, r.MaxYear, r.Read);
         return r;

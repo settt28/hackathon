@@ -53,9 +53,13 @@ Android nunca entrega la ubicación ni el micrófono a la página, aunque la app
 Dentro del APK no existe el proxy de Vite, así que la app debe saber dónde está la API:
 
 ```bash
-# frontend: compila apuntando al backend publicado
-VITE_API_URL=https://tu-backend.com npm run build
+# frontend: compila el APK apuntando al backend publicado (modo "apk": sin la CSP de la web, que bloquearía el
+# puente nativo de Capacitor). Usa siempre "npm run apk", no "npm run build", para el APK.
+VITE_API_URL=https://tu-backend.com npm run apk
 ```
+
+La web (`npm run build`) sí lleva una Content-Security-Policy que solo permite conectarse a este origen, al backend de
+`VITE_API_URL` y a los mosaicos del mapa base: si cambias de proveedor de mapas o de backend, recompila.
 
 Y agrega el origen de la app a `Cors:Origins` del backend (Capacitor: `https://localhost` y `capacitor://localhost`).
 

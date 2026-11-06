@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Carpetas que el FileProvider puede compartir con otras apps. La app no comparte archivos: solo se deja la caché
+  propia (la usa Capacitor si una página pide una foto). La plantilla traía external-path "." = todo el almacenamiento
+  externo del teléfono, más de lo necesario.
+-->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <external-path name="my_images" path="." />
     <cache-path name="my_cache_images" path="." />
 </paths>

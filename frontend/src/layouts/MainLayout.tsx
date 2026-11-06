@@ -1,6 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import NetworkMeter from '../components/NetworkMeter'
-import OfflineBanner from '../components/OfflineBanner'
 import PatyChatbot from '../components/PatyChatbot'
 import { NAV_ITEMS } from '../components/navItems'
 
@@ -11,7 +10,8 @@ import { NAV_ITEMS } from '../components/navItems'
  */
 export default function MainLayout() {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#070d17] text-slate-800 dark:text-slate-100 md:flex">
+    // Zonas seguras del celular: a los lados (cámara en horizontal) aquí; arriba en la cabecera y abajo en la barra de navegación
+    <div className="min-h-screen bg-slate-50 pl-[var(--safe-left)] pr-[var(--safe-right)] dark:bg-[#070d17] text-slate-800 dark:text-slate-100 md:flex">
       {/* Sidebar: solo desktop */}
       <aside className="hidden md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col md:border-r md:border-slate-200 md:bg-white dark:md:border-cyan-400/15 dark:md:bg-[#0b1a26]">
         <div className="px-6 py-5 text-lg font-bold text-sky-700 dark:text-cyan-300">El Niño · Preventivo</div>
@@ -35,22 +35,20 @@ export default function MainLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <OfflineBanner />
-
         {/* Cabecera con título y medidor de red */}
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-cyan-400/15 bg-white/90 dark:bg-[#070d17]/90 px-4 py-3 backdrop-blur md:px-8">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-cyan-400/15 bg-white/90 dark:bg-[#070d17]/90 px-4 pb-3 pt-[calc(0.75rem+var(--safe-top))] backdrop-blur md:px-8">
           <h1 className="truncate text-base font-semibold md:text-lg">Sistema Preventivo El Niño</h1>
           <NetworkMeter />
         </header>
 
-        {/* Contenido de la ruta activa. pb-24 deja espacio para la Bottom Bar en móvil */}
-        <main className="flex-1 px-4 py-6 pb-24 md:px-8 md:pb-8">
+        {/* Contenido de la ruta activa. Abajo deja espacio para la Bottom Bar en móvil (y la barra de gestos) */}
+        <main className="flex-1 px-4 pb-[calc(6rem+var(--safe-bottom))] pt-6 md:px-8 md:pb-[calc(2rem+var(--safe-bottom))]">
           <Outlet />
         </main>
       </div>
 
       {/* Bottom Bar: solo móvil */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-slate-200 dark:border-cyan-400/15 bg-white dark:bg-[#0b1a26] md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)] border-t border-slate-200 dark:border-cyan-400/15 bg-white dark:bg-[#0b1a26] md:hidden">
         {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}

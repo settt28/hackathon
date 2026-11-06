@@ -51,7 +51,7 @@ export default function MedicalAlert({ number, measure, urgent, onClose }: Medic
   }, [])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-3 backdrop-blur-[2px] sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-3 pb-[max(0.75rem,var(--safe-bottom))] pt-[max(0.75rem,var(--safe-top))] backdrop-blur-[2px] sm:items-center" onClick={onClose}>
       <div
         role="alertdialog"
         aria-modal="true"

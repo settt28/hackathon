@@ -202,14 +202,17 @@ app.Use(async (ctx, next) =>
         // pide una nueva por detrás. En 2G/3G eso ahorra varios segundos al volver a una pantalla.
         // Solo en respuestas correctas, y sin pisar un Cache-Control que haya puesto el endpoint.
         // Nunca si la petición venía autenticada: hoy todos los endpoints con clave son POST, pero si
-        // mañana se añade un GET protegido, "public" dejaría su respuesta en cachés compartidas.
+        // mañana se añade un GET protegido, su respuesta quedaría guardada en el navegador.
+        // "private" y no "public": muchas URLs llevan las coordenadas GPS de la persona (?lat=&lon=). Con "public",
+        // un caché compartido (CDN, proxy de la operadora, Cloudflare) podría guardar ubicaciones de usuarios.
+        // Solo el dispositivo de la persona guarda la respuesta.
         var authenticated = ctx.Request.Headers.ContainsKey("X-Api-Key") || ctx.Request.Headers.ContainsKey("Authorization");
         if (HttpMethods.IsGet(ctx.Request.Method) && !authenticated)
             ctx.Response.OnStarting(static state =>
             {
                 var res = (HttpResponse)state;
                 if (res.StatusCode == StatusCodes.Status200OK && string.IsNullOrEmpty(res.Headers.CacheControl))
-                    res.Headers.CacheControl = "public, max-age=30, stale-while-revalidate=300";
+                    res.Headers.CacheControl = "private, max-age=30, stale-while-revalidate=300";
                 return Task.CompletedTask;
             }, ctx.Response);
     }

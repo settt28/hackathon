@@ -46,8 +46,12 @@ function offlinePrecache(): Plugin {
       walk(outDir, '')
 
       const manifest = ['/', ...fromPublic, ...files]
-      // Identidad del build: los nombres con hash ya cambian en cada despliegue, así que sirven de huella
-      const buildId = `paty-${createHash('sha256').update(files.join('|')).digest('hex').slice(0, 12)}`
+      // Identidad del build: los nombres con hash del bundle MÁS el contenido de lo publicado sin hash (datos offline,
+      // manifest, iconos). Si solo se actualizan distritos o postas, la versión cambia igual y los teléfonos los renuevan:
+      // con la huella de los nombres solamente, se habrían quedado con los datos viejos para siempre.
+      const hash = createHash('sha256').update(files.join('|'))
+      for (const published of fromPublic) hash.update(published).update(fs.readFileSync(path.join(outDir, published)))
+      const buildId = `paty-${hash.digest('hex').slice(0, 12)}`
       const filled = source
         .replace('__PRECACHE_MANIFEST__', JSON.stringify(manifest))
         .replace('__BUILD_ID__', JSON.stringify(buildId))
@@ -60,9 +64,48 @@ function offlinePrecache(): Plugin {
   }
 }
 
+/**
+ * Content-Security-Policy de la web: solo se ejecuta JavaScript propio y solo se conecta a este origen, al backend
+ * (VITE_API_URL) y a los mosaicos del mapa base. Es una segunda barrera: aunque algún día se colara HTML ajeno en la
+ * página, el navegador no cargaría scripts de otros sitios ni mandaría datos (p. ej. la ubicación) a otro servidor.
+ *
+ * No va en el APK (`vite build --mode apk`): Capacitor inyecta su puente nativo como script en línea dentro del HTML,
+ * y esta política lo bloquearía. Allí el contenido ya viene empaquetado dentro de la app.
+ * Las cabeceras que solo valen por HTTP (frame-ancestors, HSTS) van en el servidor que publique la web.
+ */
+function contentSecurityPolicy(): Plugin {
+  let csp = ''
+  return {
+    name: 'paty-csp',
+    apply: 'build',
+    configResolved(config) {
+      if (config.mode === 'apk') return
+      const api = config.env.VITE_API_URL ? new URL(config.env.VITE_API_URL).origin : ''
+      csp = [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'", // estilos en línea de React (posición del mapa, colores de riesgo)
+        "img-src 'self' data: blob: https://server.arcgisonline.com", // mapa base de Esri
+        "font-src 'self' data:",
+        `connect-src 'self' ${api}`.trim(),
+        "media-src 'self' blob:", // voz de Paty (MP3 generado por el servidor)
+        "worker-src 'self'",
+        "manifest-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+      ].join('; ')
+    },
+    transformIndexHtml() {
+      if (!csp) return
+      return [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: csp }, injectTo: 'head-prepend' }]
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), offlinePrecache()],
+  plugins: [react(), offlinePrecache(), contentSecurityPolicy()],
   // /api → backend .NET (puerto de launchSettings.json). Evita CORS y URLs fijas en el código.
   server: { proxy: { '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:5261' } },
   preview: { proxy: { '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:5261' } },

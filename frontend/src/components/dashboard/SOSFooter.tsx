@@ -8,7 +8,7 @@ interface SOSFooterProps {
 /** Botón de emergencia SOS: halo fijo + ondas rojas continuas para que sea lo más visible de la pantalla. */
 const SOSFooter: FC<SOSFooterProps> = ({ onPress }) => (
   // short: celular en horizontal (poca altura): el SOS queda fijo en la esquina para que nunca se pierda de vista
-  <footer className="flex flex-col items-center pb-3 pt-7 sm:pt-5 @5xl:pt-10 short:fixed short:bottom-4 short:left-[max(1rem,env(safe-area-inset-left))] short:z-40 short:p-0">
+  <footer className="flex flex-col items-center pb-3 pt-7 sm:pt-5 @5xl:pt-10 short:fixed short:bottom-[max(1rem,var(--safe-bottom))] short:left-[max(1rem,var(--safe-left))] short:z-40 short:p-0">
     <div className="relative flex h-[84px] w-[84px] items-center justify-center @5xl:h-[112px] @5xl:w-[112px]">
       <span className="absolute -inset-3 rounded-full bg-red-500/15 dark:bg-red-500/20" aria-hidden />
       <span className="absolute inset-0 rounded-full bg-red-500/40 motion-safe:animate-pulse-ring" aria-hidden />

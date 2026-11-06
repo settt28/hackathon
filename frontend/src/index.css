@@ -20,6 +20,18 @@
   /* Color de las líneas del mapa según el tema */
   :root {
     --map-grid-color: rgba(14, 165, 233, 0.13);
+
+    /*
+     * Zonas del celular que no se deben tapar: barra de estado (hora, batería, notch) arriba y barra de navegación o
+     * gestos abajo; a los lados, la cámara con el teléfono en horizontal. Cada celular tiene sus medidas.
+     * - Navegador / WebView moderno: env(safe-area-inset-*) (requiere viewport-fit=cover, ya está en index.html).
+     * - APK con WebView antiguo: Capacitor (SystemBars) inyecta --safe-area-inset-* en <html>.
+     * Se toma el mayor de los dos; donde no hay barras (PC) ambos valen 0 y nada cambia.
+     */
+    --safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+    --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+    --safe-left: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+    --safe-right: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
   }
   .dark {
     --map-grid-color: rgba(34, 211, 238, 0.07);

@@ -29,7 +29,7 @@ export default function ChatInputBar({ value, onChange, onSubmit, onCall, disabl
         e.preventDefault()
         if (canSend) onSubmit(value)
       }}
-      className="border-t border-slate-200 bg-white px-2.5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-cyan-400/15 dark:bg-[#070d17] @3xl:px-6 @3xl:py-4"
+      className="border-t border-slate-200 bg-white px-2.5 py-3 dark:border-cyan-400/15 dark:bg-[#070d17] @3xl:px-6 @3xl:py-4"
     >
       {/* Alineado con la columna de la conversación en pantallas anchas */}
       <div className="mx-auto flex max-w-3xl items-center gap-2.5">
