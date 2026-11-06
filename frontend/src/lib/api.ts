@@ -203,3 +203,28 @@ export async function getTtsAudio(texto: string): Promise<Blob | null> {
   }).catch(() => null)
   return res?.ok ? res.blob() : null
 }
+
+// ---- Historial de la zona (ZonasController → GET /api/zonas/historial) ----
+
+export interface HistoricalEvent {
+  id: string
+  district: string
+  province: string
+  hazard: 'Huaico' | 'Inundacion' | 'LluviaIntensa' | 'Deslizamiento' | 'Dengue' | 'Epidemia' | 'Marejada' | 'Otro'
+  sourceEventType: string
+  date: string
+  severity: 'leve' | 'moderado' | 'fuerte' | string
+  description: string
+  source: string
+}
+
+export interface ZoneHistory {
+  ubicacion: { ubigeo: string; district: string; province: string; department: string }
+  historial: { coverage: string; events: HistoricalEvent[] }
+}
+
+export const getZoneHistory = (lat: number, lon: number, signal?: AbortSignal) =>
+  api<ZoneHistory>(`/api/zonas/historial?lat=${lat}&lon=${lon}&limite=60`, { signal })
+
+export const getActiveAlerts = (ubigeo: string, signal?: AbortSignal) =>
+  api<Alert[]>(`/api/alertas?ubigeo=${encodeURIComponent(ubigeo)}`, { signal })

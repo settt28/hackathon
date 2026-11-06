@@ -44,7 +44,7 @@ const DashboardView: FC = () => {
 
           <div className="mt-4 flex flex-col gap-4 px-4 sm:gap-3">
             <MapCard state={risk.state} retry={risk.retry} />
-            <HistoryButton onClick={() => navigate('/resumen')} />
+            <HistoryButton onClick={() => navigate('/historial')} />
             <AssistantCard onOpenChat={() => navigate('/paty')} onVoice={() => navigate('/paty', { state: { call: true } })} />
           </div>
 
