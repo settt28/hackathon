@@ -20,17 +20,7 @@ public sealed class OpenAiCompatibleChatModel(AiEndpointOptions options, ILogger
     {
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{options.BaseUrl.TrimEnd('/')}/chat/completions")
         {
-            Content = Json(new
-            {
-                model = options.Model,
-                temperature = 0.3, // respuestas sobrias: instrucciones, no creatividad
-                max_tokens = 500,
-                messages = new object[]
-                {
-                    new { role = "system", content = systemPrompt },
-                    new { role = "user", content = userMessage },
-                },
-            }),
+            Content = Json(Body(systemPrompt, userMessage)),
         };
         if (!string.IsNullOrWhiteSpace(options.ApiKey))
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
@@ -43,6 +33,23 @@ public sealed class OpenAiCompatibleChatModel(AiEndpointOptions options, ILogger
         }
         var json = await res.Content.ReadFromJsonAsync<JsonNode>(ct);
         return json?["choices"]?[0]?["message"]?["content"]?.GetValue<string>();
+    }
+
+    private Dictionary<string, object> Body(string systemPrompt, string userMessage)
+    {
+        var body = new Dictionary<string, object>
+        {
+            ["model"] = options.Model,
+            ["temperature"] = 0.2, // respuestas sobrias: instrucciones de los fragmentos, no creatividad
+            ["max_tokens"] = 800,
+            ["messages"] = new object[]
+            {
+                new { role = "system", content = systemPrompt },
+                new { role = "user", content = userMessage },
+            },
+        };
+        if (!string.IsNullOrWhiteSpace(options.ReasoningEffort)) body["reasoning_effort"] = options.ReasoningEffort;
+        return body;
     }
 
     /// <summary>JSON con Content-Length (no chunked): algunos servidores locales no leen cuerpos fragmentados.</summary>
@@ -63,7 +70,7 @@ public sealed class WhisperSpeechToText(AiEndpointOptions options, ILogger<Whisp
 
     // Vocabulario de la zona para que Whisper no confunda términos locales
     private const string Vocabulary =
-        "Perú, Fenómeno El Niño, huaico, huayco, quebrada, lluvias, inundación, desborde, deslizamiento, derrumbe, " +
+        "Paty, Perú, Fenómeno El Niño, huaico, huayco, quebrada, lluvias, inundación, desborde, deslizamiento, derrumbe, " +
         "dengue, zancudo, diarrea, posta, centro de salud, chacra, cultivos, Defensa Civil, Bomberos, SAMU, SENAMHI, INDECI, ENFEN.";
 
     public bool IsAvailable => true;

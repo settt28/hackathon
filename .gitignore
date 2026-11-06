@@ -1,3 +1,6 @@
 # Entorno de entrenamiento del modelo (se recrea con pip)
 ml/.venv/
 __pycache__/
+
+# Claves locales (Groq, Fish Audio…): NUNCA se suben
+backend/src/ElNino.API/appsettings.Local.json

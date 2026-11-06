@@ -3,11 +3,11 @@ using System.Net;
 namespace ElNino.Infrastructure.Ai;
 
 /// <summary>
-/// Sección "Ai" de appsettings. Las claves NUNCA van en el repo: se pasan por variables de entorno
-/// (Ai__Chat__ApiKey, Ai__Stt__ApiKey, Ai__Tts__ApiKey) o con `dotnet user-secrets`.
+/// Sección "Ai" de appsettings. Las claves NUNCA van en el repo: van en appsettings.Local.json (git lo ignora;
+/// ver appsettings.Local.example.json) o en variables de entorno (Ai__Chat__ApiKey, Ai__Stt__ApiKey, Ai__Tts__ApiKey).
 ///
-/// Nube (con internet):  BaseUrl = https://api.groq.com/openai/v1  + ApiKey de console.groq.com
-/// Local (sin internet): BaseUrl = http://localhost:11434/v1 (Ollama, `ollama pull llama3.1:8b`), sin ApiKey
+/// Nube (con internet):  BaseUrl = https://api.groq.com/openai/v1, Model = openai/gpt-oss-20b, ApiKey de console.groq.com
+/// Local (sin internet): BaseUrl = http://localhost:11434/v1 (Ollama, `ollama pull llama3.1:8b`), sin ApiKey ni ReasoningEffort
 /// </summary>
 public class AiOptions
 {
@@ -22,6 +22,12 @@ public class AiEndpointOptions
     public string BaseUrl { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
     public string ApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Solo para modelos que "razonan" (ej. openai/gpt-oss-20b en Groq): "low" responde rápido y sin gastar el límite
+    /// de tokens pensando. Vacío = no se envía (Llama en Ollama no lo necesita).
+    /// </summary>
+    public string ReasoningEffort { get; set; } = string.Empty;
 
     /// <summary>Configurado si hay URL y modelo, y además clave o un servidor en la red local (que no la necesita).</summary>
     public bool IsConfigured =>

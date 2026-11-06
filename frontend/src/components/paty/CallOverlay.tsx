@@ -65,9 +65,10 @@ export default function CallOverlay({ state, heard, said, error, onHangUp, onClo
           </p>
         )}
         {said && state !== 'listening' && (
-          <p className="line-clamp-6 w-fit max-w-[95%] rounded-2xl rounded-bl-md border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 dark:border-cyan-400/20 dark:bg-[#0b1a26] dark:text-slate-100">
-            {said}
-          </p>
+          // El relleno va afuera: si no, la línea recortada asoma en el borde inferior
+          <div className="w-fit max-w-[95%] rounded-2xl rounded-bl-md border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 dark:border-cyan-400/20 dark:bg-[#0b1a26] dark:text-slate-100">
+            <p className="line-clamp-6">{said}</p>
+          </div>
         )}
         {state === 'unsupported' && (
           <p className="text-center text-sm text-slate-600 dark:text-slate-300">

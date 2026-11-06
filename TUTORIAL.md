@@ -130,44 +130,54 @@ curl -X POST "http://localhost:5261/api/sms/entrante?key=demo-sms-2026" -d "text
 ## 6. Activar la IA de chat y la voz (opcional)
 
 Sin configurar nada, Paty ya funciona: responde con los consejos oficiales y puedes hablarle por voz (el navegador
-reconoce y lee en voz alta). Para que un modelo de lenguaje redacte las respuestas, elige una opción y
-**reinicia el backend** en la misma terminal donde definiste las variables.
+reconoce y lee en voz alta). Para que un modelo de lenguaje redacte las respuestas y para la voz natural del
+servidor, agrega tus claves en un **archivo local que git ignora** (así nunca se suben al repositorio).
 
-**Opción A: Groq (en la nube, gratis con registro).** Crea una clave en https://console.groq.com
+**1. Crea el archivo de claves** a partir del ejemplo:
 
 ```powershell
-# Windows (PowerShell), solo para esta terminal
-$env:Ai__Chat__ApiKey="gsk_tu_clave"
-$env:Ai__Stt__ApiKey="gsk_tu_clave"      # dictado por voz (Whisper)
+# Windows (PowerShell)
+cd backend/src/ElNino.API
+Copy-Item appsettings.Local.example.json appsettings.Local.json
 ```
 
 ```bash
 # macOS / Linux / Git Bash
-export Ai__Chat__ApiKey="gsk_tu_clave"
-export Ai__Stt__ApiKey="gsk_tu_clave"
+cd backend/src/ElNino.API && cp appsettings.Local.example.json appsettings.Local.json
 ```
 
-**Opción B: Ollama (en tu computadora, sin internet).**
+**2. Ábrelo y completa las claves que tengas** (puedes dejar en blanco las que no uses):
 
-```bash
-ollama pull llama3.1:8b
+```json
+{
+  "Ai": {
+    "Chat": { "ApiKey": "gsk_tu_clave_de_groq" },
+    "Stt":  { "ApiKey": "gsk_tu_clave_de_groq" },
+    "Tts":  { "ApiKey": "tu_clave_de_fish_audio", "VoiceId": "id_de_la_voz" }
+  }
+}
 ```
 
-```powershell
-$env:Ai__Chat__BaseUrl="http://localhost:11434/v1"; $env:Ai__Chat__Model="llama3.1:8b"
+| Clave | Para qué | Dónde se obtiene |
+|---|---|---|
+| `Chat` y `Stt` | IA que redacta las respuestas y dictado por voz (Whisper) | https://console.groq.com (gratis con registro) |
+| `Tts` | Voz natural de Paty | https://fish.audio (clave en *API Keys*; el `VoiceId` es el id de la voz que elijas) |
+
+**3. Reinicia el backend.** La consola dice qué quedó activo, por ejemplo:
+
+```
+IA de chat: openai/gpt-oss-20b · Dictado: whisper-large-v3-turbo · Voz servidor: Fish Audio
 ```
 
-**Voz natural con Fish Audio (opcional).** Crea una clave en https://fish.audio y elige una voz:
+**Sin internet (Ollama).** Instala [Ollama](https://ollama.com), descarga el modelo con `ollama pull llama3.1:8b`
+y en `appsettings.Local.json` usa:
 
-```powershell
-$env:Ai__Tts__ApiKey="tu_clave"; $env:Ai__Tts__VoiceId="id_de_la_voz"
+```json
+{ "Ai": { "Chat": { "BaseUrl": "http://localhost:11434/v1", "Model": "llama3.1:8b", "ReasoningEffort": "" } } }
 ```
 
-Al arrancar, la consola del backend dice qué quedó activo, por ejemplo
-`IA de chat: llama-3.1-8b-instant · Dictado: whisper-large-v3-turbo`. El dictado del servidor (Whisper) solo se
-usa en navegadores sin reconocimiento de voz propio.
-
-> Nunca subas las claves al repositorio: van solo en variables de entorno.
+> Nunca pongas claves en `appsettings.json` ni en el README: esos archivos sí se suben a GitHub.
+> También puedes usar variables de entorno (`$env:Ai__Chat__ApiKey="..."` en PowerShell).
 
 ## 7. Problemas comunes
 
@@ -181,6 +191,9 @@ usa en navegadores sin reconocimiento de voz propio.
 | El mapa dice "Activa tu ubicación" | Da permiso de ubicación al navegador o usa `?lat=...&lon=...` (paso 5). |
 | "Demasiadas consultas seguidas" | Hay un límite de 20 consultas por minuto al chat. Espera un minuto. |
 | El micrófono no te escucha | Da permiso de micrófono al navegador. Firefox no tiene reconocimiento de voz: usa Chrome, Edge o Safari, o configura el dictado con Whisper (paso 6). |
+| En el celular (abriendo `http://192.168…` con `npm run dev -- --host`) no funcionan el micrófono ni la ubicación | El navegador solo los permite con HTTPS o en `localhost`. Para la demo en celular publica el frontend con HTTPS (un túnel o un despliegue), o usa `?lat=...&lon=...` y el chat escrito. |
+| Las respuestas no usan IA (no aparece la etiqueta "IA" en el chat) | Mira la consola del backend: `respondió 401` = clave incorrecta; `respondió 404 model_not_found` = Groq retiró el modelo: cambia `Ai:Chat:Model` en `appsettings.json` por uno de https://console.groq.com/docs/models. |
+| La consola dice `IA de chat: no configurada` | Falta `appsettings.Local.json` o está mal ubicado: debe estar en `backend/src/ElNino.API/`. |
 | Una palabra de alarma nueva no se detecta | Las palabras de alarma se cargan al crear la base de datos: borra `elnino.db` y reinicia. |
 
 ## 8. Más información

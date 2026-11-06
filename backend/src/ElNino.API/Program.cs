@@ -10,6 +10,10 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Claves locales (Groq, Fish Audio…) en appsettings.Local.json: git lo ignora, así nunca se suben al repo.
+// Ver appsettings.Local.example.json. Las variables de entorno siguen funcionando igual.
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false);
+
 // Ninguna petición necesita más de 1 MB salvo los mensajes de voz (10 MB, ver PatyController.Voz)
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 1_000_000);
 

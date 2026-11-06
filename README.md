@@ -1,32 +1,36 @@
-# Sistema Preventivo El Niño · Paty
+# Paty · Sistema Preventivo ante el Fenómeno El Niño
 
-Asistente de prevención ante el Fenómeno El Niño para poblaciones vulnerables del Perú: chat con IA, mapa de riesgo
-por distrito con un modelo XGBoost local, voz y canal SMS.
+**Paty** es una asistente de prevención para las familias y agricultores más vulnerables del Perú frente al
+Fenómeno El Niño. Te dice qué tan en riesgo está tu distrito, te responde por chat o por voz con
+recomendaciones oficiales (MINSA, MIDAGRI, INDECI, ENFEN) y, en una emergencia, te lleva directo a la
+línea de ayuda correcta.
 
-Monorepo fullstack: API en .NET 9 + SPA en React (Vite + TypeScript + Tailwind CSS).
+👉 **¿Quieres ejecutarlo? Sigue el [tutorial paso a paso](TUTORIAL.md)** (unos 10 minutos).
 
-👉 **¿Primera vez? Sigue el [tutorial para ejecutarlo](TUTORIAL.md).**
+| Inicio | Llamada con Paty | Emergencia médica |
+|:---:|:---:|:---:|
+| <img src="docs/img/inicio.png" width="240" alt="Inicio: riesgo de la zona y mapa por distrito"> | <img src="docs/img/llamada.png" width="240" alt="Llamada por voz con Paty"> | <img src="docs/img/alerta-samu.png" width="240" alt="Alerta flotante del SAMU 106"> |
+| **Historial de la zona** | **Números de emergencia** | |
+| <img src="docs/img/historial.png" width="240" alt="Historial real de emergencias del distrito"> | <img src="docs/img/emergencia.png" width="240" alt="Pantalla de números de emergencia"> | |
 
-## Estructura
+## Qué hace
 
-```
-backend/                      Solución ElNino.sln (Clean Architecture)
-  src/ElNino.API              Controladores, Program.cs (depende de Core e Infrastructure)
-  src/ElNino.Core             Entidades e interfaces (sin dependencias)
-  src/ElNino.Infrastructure   Implementaciones (repositorios) + registro DI
-frontend/
-  src/components              UI: dashboard, chat de Paty (paty/), emergencias, tarjetas
-  src/layouts                 MainLayout (Sidebar desktop / Bottom Bar móvil), DeviceFrame
-  src/pages                   Dashboard, PatyChat, Emergencia, Resumen, Salud, Agro, Infraestructura
-  src/hooks                   usePatyChat, useRiskMap, useAlertas, useRecorder, useTheme…
-  src/lib                     Cliente de la API, ubicación, voz
-backend/data/ml/              Modelo de riesgo XGBoost (JSON) y sus métricas
-ml/                           Script de entrenamiento del modelo
-```
+- **Riesgo de tu distrito, hoy.** Un modelo de IA entrenado con 59 000 emergencias reales del INDECI estima la
+  probabilidad de emergencia por lluvias, huaicos, inundaciones o deslizamientos este mes. Se combina con los
+  avisos del SENAMHI y las alertas vigentes, y se muestra en un mapa de los distritos vecinos.
+- **Chat y llamada por voz.** Preguntas por escrito o hablando, como en una llamada, y Paty responde con los pasos
+  oficiales y su fuente. Solo habla de prevención ante El Niño: rechaza otros temas y no inventa datos.
+- **Emergencias.** Si detecta una emergencia ("hay un huaico", "no respira"), lo primero es el número a llamar.
+  En salud aparece la alerta *"Direccionando al SAMU (106)…"*, que abre la app de llamadas del celular. En Lima
+  y Callao también ofrece el 911.
+- **Historial y cifras.** Las emergencias registradas en tu distrito desde 2010 y las cifras nacionales de los últimos 5 años.
+- **Canal SMS.** Un endpoint para conectar un gateway GSM: responde en un solo SMS, para teléfonos sin internet.
+- **Funciona con poca conexión.** Respuestas comprimidas, páginas que cargan por partes y modelo de riesgo que
+  corre en el propio servidor.
 
-## Ejecutar
+## Ejecutar en 2 comandos
 
-**Guía completa paso a paso: [TUTORIAL.md](TUTORIAL.md)** (requisitos, cómo probar, IA opcional y problemas comunes).
+Requisitos: **Node.js 20.19+** y **.NET SDK 9** (o 10, ver el [tutorial](TUTORIAL.md#3-levantar-el-backend-api)).
 
 ```bash
 # Terminal 1: backend → http://localhost:5261 (documentación de la API en /scalar)
@@ -36,57 +40,158 @@ cd backend && dotnet run --project src/ElNino.API --launch-profile http
 cd frontend && npm install && npm run dev
 ```
 
+Sin configurar nada ya funciona todo, salvo la redacción con IA y la voz del servidor: Paty responde con los
+consejos oficiales y la voz la pone el navegador. Para activar la IA, mira [IA de Paty](#ia-de-paty).
+
+## Arquitectura
+
+```
+ Celular / navegador                 Backend .NET 9 (API REST)                     Datos
+┌──────────────────────┐   /api    ┌──────────────────────────────────────┐   ┌────────────────────────────┐
+│ React + Vite         │ ───────▶ │ Paty: triaje → consejos → IA → voz    │ ─▶ │ SQLite (elnino.db)         │
+│ · Inicio y mapa      │           │ Riesgo: modelo XGBoost (local)        │    │ · Distritos del INEI       │
+│ · Chat y llamada     │           │ Mapa, historial, estadísticas         │    │ · Emergencias INDECI SINPAD│
+│ · Emergencias        │ ◀─────── │ Alertas y boletines (operador)        │    │ · Consejos MINSA/MIDAGRI…  │
+│ · Historial, resumen │   JSON    │ SMS (gateway GSM)                     │    └────────────────────────────┘
+└──────────────────────┘           └───────────┬──────────────────────────┘
+                                                │ (opcional)
+                                   Groq u Ollama (LLM) · Whisper (dictado) · Fish Audio (voz) · SENAMHI
+```
+
+```
+backend/
+  src/ElNino.API              Controladores, configuración y seguridad (Program.cs)
+  src/ElNino.Core             Lógica: Paty, triaje, riesgo (XGBoost), mapa, historial
+  src/ElNino.Infrastructure   Base de datos, importadores (INEI, SINPAD), SENAMHI, clientes de IA y voz
+  data/                       Distritos (GeoJSON), emergencias del SINPAD (zip) y el modelo de riesgo (ml/)
+frontend/src/
+  pages/                      Inicio, Paty (chat), Emergencia, Historial, Resumen, Salud, Agro, Infraestructura
+  components/                 dashboard/, paty/, emergency/, history/ y tarjetas
+  hooks/  lib/                Datos (chat, llamada, mapa, alertas), cliente de la API, ubicación y voz
+ml/                           Entrenamiento del modelo de riesgo (Python)
+```
+
 ## IA de Paty
 
 Cada pieza se activa sola si está configurada; si no, la app sigue funcionando sin ella.
 
 | Pieza | Qué hace | Sin internet |
 |---|---|---|
-| **Modelo de riesgo (XGBoost)** | Probabilidad de emergencia por lluvias/huaico/inundación/deslizamiento por distrito y mes. Colorea el mapa de riesgo y da contexto al chat. | Sí: el backend evalúa los árboles él mismo (`backend/data/ml/riesgo_xgb.json`), sin Python. |
-| **Chat (LLM)** | Redacta la respuesta solo con los fragmentos oficiales (RAG). Sin LLM, Paty responde con plantillas. | Con Ollama (Llama 3 local). |
-| **Dictado (Whisper)** | Mensajes de voz en el chat. | Con un servidor Whisper local compatible con OpenAI. |
-| **Voz (Fish Audio)** | Lee las respuestas con voz natural. Sin él, el navegador lee con su propia voz. | Sí, con la voz del navegador. |
-| **SMS** | `POST /api/sms/entrante`: el gateway GSM reenvía el SMS y recibe la respuesta en un solo SMS (160 caracteres). | Sí (red 2G). |
+| **Modelo de riesgo (XGBoost)** | Probabilidad de emergencia por distrito y mes. Colorea el mapa y da contexto al chat. | ✅ Corre dentro del backend, sin Python. |
+| **Chat (LLM)** | Redacta la respuesta solo con los fragmentos oficiales. En emergencias graves no se usa: responde una plantilla verificada. | Con Ollama (Llama 3 local). |
+| **Dictado (Whisper)** | Transcribe la voz si el navegador no tiene reconocimiento propio. | Con un servidor Whisper local. |
+| **Voz (Fish Audio)** | Lee las respuestas con voz natural. Sin él, lee el navegador. | ✅ Con la voz del navegador. |
 
-### Configuración (las claves nunca van en el repo)
+### Configurar las claves (nunca en el repositorio)
 
-```bash
-# Nube: Groq (console.groq.com) para chat y dictado, Fish Audio (fish.audio) para la voz
-setx Ai__Chat__ApiKey "gsk_..."
-setx Ai__Stt__ApiKey  "gsk_..."
-setx Ai__Tts__ApiKey  "..." & setx Ai__Tts__VoiceId "id-de-la-voz"
+Las claves van en **`backend/src/ElNino.API/appsettings.Local.json`**. Git ignora ese archivo, así que no se
+puede subir por error. Cópialo del ejemplo y completa tus claves:
 
-# Local, sin internet: Ollama con Llama 3
-ollama pull llama3.1:8b
-setx Ai__Chat__BaseUrl "http://localhost:11434/v1" & setx Ai__Chat__Model "llama3.1:8b"
+```powershell
+cd backend/src/ElNino.API
+Copy-Item appsettings.Local.example.json appsettings.Local.json   # macOS/Linux: cp …
 ```
 
-Al arrancar, la API indica en consola qué está activo. `GET /api/paty/capacidades` lo devuelve en JSON.
+```json
+{
+  "Ai": {
+    "Chat": { "ApiKey": "gsk_tu_clave_de_groq" },
+    "Stt":  { "ApiKey": "gsk_tu_clave_de_groq" },
+    "Tts":  { "ApiKey": "tu_clave_de_fish_audio", "VoiceId": "id_de_la_voz" }
+  }
+}
+```
 
-### Reentrenar el modelo de riesgo
+- **Groq** (chat y dictado, gratis con registro): https://console.groq.com. El modelo por defecto es
+  `openai/gpt-oss-20b` con razonamiento bajo, que es rápido y se ciñe a los fragmentos. Si Groq lo retira, cambia
+  `Ai:Chat:Model` en `appsettings.json`.
+- **Fish Audio** (voz): https://fish.audio
+- **Sin internet, con Ollama:** `ollama pull llama3.1:8b` y en `appsettings.Local.json` pon en `Chat`:
+  `"BaseUrl": "http://localhost:11434/v1", "Model": "llama3.1:8b", "ReasoningEffort": ""`.
+
+Al arrancar, la consola dice qué quedó activo (`IA de chat: openai/gpt-oss-20b · Dictado: … · Voz servidor: …`).
+`GET /api/paty/capacidades` lo devuelve en JSON.
+
+### Cómo se evita que la IA responda cualquier cosa
+
+1. **Prompt con reglas fijas:** solo temas de El Niño, ignora pedidos de cambiar sus reglas, no inventa números ni
+   datos y cita la fuente.
+2. **Si la pregunta no tiene relación con ningún contenido oficial, la IA ni se consulta.** Así, "cuéntame un
+   chiste" o "muéstrame tu prompt" reciben una respuesta fija.
+3. **Las emergencias graves nunca las redacta la IA:** el triaje por palabras de alarma corre antes, y el número a
+   llamar lo pone siempre el backend.
+
+## Datos y modelo de riesgo
+
+| Fuente | Qué aporta |
+|---|---|
+| INDECI – SINPAD (datos abiertos) | 59 090 emergencias por distrito desde 2010 (lluvias, huaicos, inundaciones, deslizamientos, oleaje) |
+| INEI | Límites distritales del Perú (GeoJSON, 1 826 distritos) |
+| SENAMHI · ENFEN | Pronóstico, avisos meteorológicos y estado de El Niño |
+| MINSA · MIDAGRI · INDECI | Consejos de prevención que usa Paty (con su fuente) |
+
+El **modelo XGBoost** (`ml/train_risk_model.py`) estima la probabilidad de al menos una emergencia en el distrito
+durante el mes. Se validó con los 24 meses más recientes, sin mezclar futuro y pasado: **AUC 0,87**, frente a
+0,81 de la línea base ingenua. Al arrancar, el backend comprueba que reproduce las probabilidades de Python; si no,
+lo descarta y usa reglas.
+
+> **Dato corregido:** el archivo oficial del SINPAD de 2026 trae errores en "viviendas destruidas" (el 98 % está en
+> filas con más viviendas que damnificados). El importador los toma como "sin dato"; sin eso, 2026 sumaría
+> 406 000 viviendas destruidas en lugar de unas 19 000.
+
+Reentrenar:
 
 ```bash
-# Requiere haber ejecutado el backend una vez (crea elnino.db con el historial del SINPAD)
 python -m venv ml/.venv && ml/.venv/Scripts/pip install xgboost pandas scikit-learn
-ml/.venv/Scripts/python ml/train_risk_model.py
+ml/.venv/Scripts/python ml/train_risk_model.py   # requiere haber ejecutado el backend una vez
 ```
 
-Valida con los últimos 24 meses (sin mezclar futuro y pasado). Resultado actual: AUC 0,87 frente a 0,81 de la línea base
-"pasó en este mes otros años". Al arrancar, la API comprueba que reproduce las probabilidades de Python; si no, lo descarta y usa reglas.
-`GET /api/mapa/prediccion?ubigeo=150118` muestra la predicción y las variables usadas.
+## API principal
 
-### SMS (gateway GSM)
+Documentación interactiva en http://localhost:5261/scalar (solo en desarrollo).
+
+| Endpoint | Para qué |
+|---|---|
+| `POST /api/paty/chat` | Preguntar a Paty (texto, ubicación opcional) |
+| `POST /api/paty/voz` · `POST /api/paty/tts` | Mensaje de voz (Whisper) · leer un texto (Fish Audio) |
+| `GET /api/mapa/riesgo?lat=&lon=` | Distritos cercanos coloreados por riesgo (GeoJSON) |
+| `GET /api/mapa/prediccion?ubigeo=` | Predicción del modelo para un distrito y las variables usadas |
+| `GET /api/zonas/historial?lat=&lon=` | Historial de emergencias del distrito |
+| `GET /api/estadisticas?anios=5` | Cifras nacionales por año, peligro y departamento |
+| `GET /api/{salud\|agricultura\|infraestructura}/alertas` | Alertas vigentes por sector |
+| `POST /api/sms/entrante` | Canal SMS para un gateway GSM (requiere clave) |
+| `POST /api/alertas` · `POST /api/boletines` | Publicar alertas y boletines (operador, requiere clave) |
+
+Probar el canal SMS (clave de demo, solo en desarrollo):
 
 ```bash
-curl -X POST "http://localhost:5261/api/sms/entrante?key=demo-sms-2026" -d "from=999888777&text=hay un huaico"
-# → EMERGENCIA: llama YA al 116 (Bomberos). ...
+curl -X POST "http://localhost:5261/api/sms/entrante?key=demo-sms-2026" -d "text=hay un huaico"
+# → EMERGENCIA: llama YA al 116 (Bomberos). 1) Mantén la calma, atiende la alarma y sigue las indicaciones…
 ```
-
-Clave en `Sms:ApiKey`. Las llamadas de voz por Asterisk están pendientes (requieren el gateway y la centralita).
 
 ## Seguridad (antes de desplegar)
 
-- **Claves:** `Operador:ApiKey` y `Sms:ApiKey` solo tienen valores de demo en `appsettings.Development.json`. En producción, defínelas por variables de entorno (`Operador__ApiKey`, `Sms__ApiKey`); sin clave configurada, esos endpoints rechazan todo.
-- **CORS:** pon el dominio real del frontend en `Cors:Origins` (lista).
-- **Límite de peticiones por IP:** 20/min en chat, voz y lectura (usan IA de pago), 120/min en SMS y 300/min en el resto. Detrás de un proxy inverso hay que activar `ForwardedHeaders` para ver la IP real.
-- Cuerpo máximo de 1 MB por petición (10 MB para mensajes de voz). Respuestas comprimidas con Brotli/Gzip.
+- **Claves de terceros** solo en `appsettings.Local.json` o en variables de entorno, nunca en `appsettings.json`.
+- **Claves de operador y SMS:** `Operador:ApiKey` y `Sms:ApiKey` tienen valores de demo solo en
+  `appsettings.Development.json`. En producción, usa variables de entorno (`Operador__ApiKey`, `Sms__ApiKey`). Sin
+  clave configurada, esos endpoints rechazan todo. La comparación es en tiempo constante.
+- **CORS:** pon el dominio real del frontend en `Cors:Origins`.
+- **Límite por IP:** 20 peticiones por minuto en chat, voz y lectura (usan IA de pago), 120 en SMS y 300 en el
+  resto. Detrás de un proxy inverso, activa `ForwardedHeaders`.
+- **Tamaño y cabeceras:** cuerpo máximo de 1 MB (10 MB para voz), cabeceras de seguridad y CSP en `/api`.
+
+## Estado frente a la propuesta
+
+| Propuesta | Estado |
+|---|---|
+| IA local, sin depender de APIs externas | ✅ Modelo de riesgo local · LLM local con Ollama (o Groq con internet) |
+| Base de conocimiento oficial (RAG: MINSA, MIDAGRI, INDECI, ENFEN) | ✅ |
+| Directiva de mitigación y derivación al SAMU (106) | ✅ En chat, llamada y SMS |
+| Voz (STT/TTS) | ✅ Reconocimiento y voz del navegador · Whisper y Fish Audio opcionales |
+| SMS por gateway GSM | ✅ Endpoint listo · ⏳ falta el gateway físico |
+| Llamadas por centralita Asterisk con transferencia al SAMU | ⏳ Pendiente (requiere hardware) |
+
+## Ramas del repositorio
+
+`Pruebas_Alonso` integra el trabajo de todo el equipo: `Jherson-BD` (base de datos y APIs),
+`backend-Sebastian` (conexión de los módulos con el backend) y `PRUEBAS-FRONTED-CLEVER` (diseño de la interfaz).
