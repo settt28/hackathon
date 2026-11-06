@@ -3,14 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import DeviceFrame from '../layouts/DeviceFrame'
 import HistoryHeader from '../components/history/HistoryHeader'
 import ZoneSummaryCard from '../components/history/ZoneSummaryCard'
-import FilterChips from '../components/history/FilterChips'
 import TimelineItem from '../components/history/TimelineItem'
-import { FILTERS, toHistoryEvent, type EventCategory, type HistoryEvent } from '../components/history/historyEvents'
+import { toHistoryEvent, type HistoryEvent } from '../components/history/historyEvents'
 import SavedDataNote from '../components/SavedDataNote'
 import { getActiveAlerts, getZoneHistory } from '../lib/api'
 import { getPosition } from '../lib/geo'
-
-type Filter = EventCategory | 'todos'
 
 type State =
   | { kind: 'loading' }
@@ -59,18 +56,14 @@ function useZoneHistory() {
 
 /**
  * Pantalla "Historial de la Zona & Alertas" (se abre desde el dashboard).
- * Resumen de la zona + línea de tiempo filtrable; un solo evento abierto a la vez.
+ * Resumen de la zona + línea de tiempo con todos los eventos; un solo evento abierto a la vez.
  */
 const HistoryView: FC = () => {
   const navigate = useNavigate()
   const { state, retry } = useZoneHistory()
-  const [filter, setFilter] = useState<Filter>('todos')
   const [openId, setOpenId] = useState<string | null>(null)
 
   const all = useMemo(() => (state.kind === 'ok' ? state.events : []), [state])
-  const events = filter === 'todos' ? all : all.filter((e) => e.category === filter)
-  // Solo los filtros que tienen eventos (el historial del INDECI no incluye sismos)
-  const filters = FILTERS.filter((f) => f.id === 'todos' || all.some((e) => e.category === f.id))
 
   const years = all.map((e) => e.year)
   const stats =
@@ -104,7 +97,6 @@ const HistoryView: FC = () => {
 
               <div className="@4xl:mt-4">
                 <h2 className="mt-5 px-4 text-[11px] font-extrabold tracking-[0.18em] text-sky-600 dark:text-cyan-300 @4xl:mt-0">REGISTRO HISTÓRICO</h2>
-                {all.length > 0 && <FilterChips options={filters} value={filter} onChange={setFilter} />}
 
                 {all.length === 0 ? (
                   <p className="mx-4 mt-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-cyan-400/20 dark:bg-[#0b1a26] dark:text-slate-300">
@@ -114,7 +106,7 @@ const HistoryView: FC = () => {
                   /* Línea de tiempo: la línea vertical une los puntos de cada evento */
                   <ol className="relative ml-2 mr-4 mt-3 flex flex-col gap-2.5">
                     <span className="absolute bottom-6 left-[11px] top-6 w-0.5 bg-cyan-500/40 dark:bg-cyan-700/60" aria-hidden />
-                    {events.map((event) => (
+                    {all.map((event) => (
                       <TimelineItem
                         key={event.id}
                         event={event}

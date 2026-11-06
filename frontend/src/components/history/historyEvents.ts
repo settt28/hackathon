@@ -1,15 +1,8 @@
 import { Cloud, CloudRain, Droplet, Mountain, Waves, type LucideIcon } from 'lucide-react'
 import type { HistoricalEvent } from '../../lib/api'
 
-/** Categorías de los filtros del registro histórico. */
+/** Categoría de un evento del registro histórico (la cifra "De origen climático" del resumen cuenta los de clima). */
 export type EventCategory = 'clima' | 'mar' | 'sismos'
-
-export const FILTERS: { id: EventCategory | 'todos'; label: string }[] = [
-  { id: 'todos', label: 'Todos' },
-  { id: 'clima', label: 'Clima' },
-  { id: 'mar', label: 'Mar' },
-  { id: 'sismos', label: 'Sismos' },
-]
 
 /** Evento histórico de la zona. */
 export interface HistoryEvent {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Ambulance, Phone, X } from 'lucide-react'
+import { useBackHandler } from '../../hooks/useBackHandler'
 
 const COUNTDOWN = 5
 
@@ -37,6 +38,9 @@ export default function MedicalAlert({ number, measure, urgent, onClose }: Medic
   }, [urgent, left, opened, tel])
 
   // Siempre el onClose más reciente, sin volver a enfocar "Llamar" cada vez que el chat se redibuja
+  // "Atrás" de Android cierra la alerta (igual que Cancelar), en vez de salir del chat
+  useBackHandler(true, onClose)
+
   const onCloseRef = useRef(onClose)
   useEffect(() => {
     onCloseRef.current = onClose

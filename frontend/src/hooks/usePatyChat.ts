@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, sendPatyVoice, type PatyReply } from '../lib/api'
 import { getPosition, getPositionWithin } from '../lib/geo'
-import { askPaty, preloadOfflineData } from '../lib/paty/client'
+import { askPaty, preloadOfflineData, resetOfflineConversation } from '../lib/paty/client'
 import { speak, stopSpeaking } from '../lib/speech'
 
 export type ChatMessage =
@@ -22,6 +22,7 @@ export function usePatyChat() {
   useEffect(() => {
     void getPosition()
     void preloadOfflineData()
+    resetOfflineConversation() // cada vez que se abre el chat, Paty sin conexión empieza la charla de cero
   }, [])
 
   useEffect(

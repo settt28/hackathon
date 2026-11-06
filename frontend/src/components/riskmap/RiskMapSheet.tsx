@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FC } from 'react'
 import { History, MapPin, X } from 'lucide-react'
 import type { RiskMapState } from '../../hooks/useRiskMap'
+import { useBackHandler } from '../../hooks/useBackHandler'
 import RiskMap from './RiskMap'
 import RiskLegend from './RiskLegend'
 import DistrictDetail from './DistrictDetail'
@@ -24,6 +25,8 @@ const RiskMapSheet: FC<RiskMapSheetProps> = ({ open, onClose, onViewHistory, sta
   const mine = map?.features.find((f) => f.properties.esTuDistrito) ?? map?.features[0] ?? null
   const [selected, setSelected] = useState<string | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
+  // "Atrás" de Android con el pop-up abierto: lo cierra y deja al usuario en el inicio
+  useBackHandler(open, onClose)
 
   // Siempre el onClose más reciente: el foco no salta al botón de cerrar cada vez que el mapa se refresca
   const onCloseRef = useRef(onClose)

@@ -1,7 +1,16 @@
 import knowledgeJson from '../../data/offline/knowledge.json'
 import { api, backendAvailable, sendPatyMessage, type PatyReply } from '../api'
 import { getLastPosition, getPositionWithin } from '../geo'
-import { answerOffline, triage, type Coords, type OfflineCenter, type OfflineDistrict, type OfflineGeo, type OfflineKnowledge } from './engine'
+import {
+  answerOffline,
+  newOfflineSession,
+  triage,
+  type Coords,
+  type OfflineCenter,
+  type OfflineDistrict,
+  type OfflineGeo,
+  type OfflineKnowledge,
+} from './engine'
 
 /**
  * Decide quién responde a Paty, para que siempre haya respuesta rápida:
@@ -59,6 +68,17 @@ const GPS_WAIT_OFFLINE_MS = 800
 let geo: Promise<OfflineGeo | null> | null = null
 
 /** Carga distritos y postas (van dentro del APK). Conviene llamarlo al abrir el chat, para que estén listos. */
+/**
+ * Memoria de la conversación sin conexión: así Paty no repite frases ni pasos y entiende "¿qué más?" o "sí".
+ * Vive solo mientras el chat está abierto (no se guarda en el teléfono).
+ */
+let conversation = newOfflineSession()
+
+/** Empieza una conversación nueva (al abrir el chat). */
+export function resetOfflineConversation() {
+  conversation = newOfflineSession()
+}
+
 export function preloadOfflineData(): Promise<OfflineGeo | null> {
   void refreshKnowledge()
   const load = async <T,>(file: string) => {
@@ -78,7 +98,9 @@ export function preloadOfflineData(): Promise<OfflineGeo | null> {
 async function answerHere(message: string, coords: Coords | null, maxWaitMs = 3000): Promise<PatyReply> {
   // En un celular muy lento los datos pueden tardar: sin ellos, Paty responde igual (sin distrito ni postas)
   const data = await Promise.race([preloadOfflineData(), new Promise<null>((resolve) => setTimeout(() => resolve(null), maxWaitMs))])
-  return answerOffline(message, knowledge, data, coords, new Date().getMonth())
+  const now = new Date()
+  conversation.hour = now.getHours() // "buenos días / tardes / noches" según la hora del teléfono
+  return answerOffline(message, knowledge, data, coords, now.getMonth(), conversation)
 }
 
 export async function askPaty(message: string, signal?: AbortSignal): Promise<PatyReply> {

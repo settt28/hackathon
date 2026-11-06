@@ -5,6 +5,7 @@ import DashboardView from './pages/DashboardView'
 // El modo emergencia (botón SOS) va siempre incluido: debe abrir aunque la señal se caiga en ese momento
 import EmergencyView from './pages/EmergencyView'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
+import AndroidBackButton from './components/AndroidBackButton'
 
 // Cada módulo se descarga aparte para que el inicio cargue rápido en redes lentas
 const loaders = {
@@ -54,6 +55,8 @@ export default function App() {
 
   return (
     <RouteErrorBoundary resetKey={pathname}>
+      {/* Botón / gesto "atrás" de Android en el APK: vuelve a la pantalla anterior; en el inicio pide confirmar para salir */}
+      <AndroidBackButton />
       <Suspense fallback={<div className="p-6 text-sm text-slate-400">Cargando…</div>}>
         <Routes>
           <Route index element={<DashboardView />} />

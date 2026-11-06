@@ -2,6 +2,7 @@ import { Mic, PhoneOff, X } from 'lucide-react'
 import clsx from 'clsx'
 import PatyLogo from './PatyLogo'
 import type { CallState } from '../../hooks/usePatyCall'
+import { useBackHandler } from '../../hooks/useBackHandler'
 
 interface CallOverlayProps {
   state: CallState
@@ -24,6 +25,8 @@ const STATUS: Record<CallState, string> = {
 /** Pantalla de llamada con Paty: avatar que reacciona al estado, lo que entendió, lo que responde y colgar. */
 export default function CallOverlay({ state, heard, said, error, onHangUp, onClose }: CallOverlayProps) {
   const active = state === 'listening' || state === 'thinking' || state === 'speaking'
+  // "Atrás" de Android: cuelga la llamada en curso (o cierra la pantalla si ya terminó), en vez de salir del chat
+  useBackHandler(true, active ? onHangUp : onClose)
 
   return (
     <div
