@@ -32,7 +32,7 @@ const DashboardView: FC = () => {
             <AssistantCard onOpenChat={() => navigate('/paty')} onVoice={() => navigate('/paty')} />
           </div>
 
-          <SOSFooter />
+          <SOSFooter onPress={() => navigate('/emergencia')} />
         </div>
       </main>
     </DeviceFrame>
