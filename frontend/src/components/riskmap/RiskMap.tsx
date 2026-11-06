@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type FC } from 'react'
-import { LocateFixed, Minus, Navigation2, Plus } from 'lucide-react'
+import clsx from 'clsx'
+import { LocateFixed, Maximize2, Minimize2, Minus, Navigation2, Plus } from 'lucide-react'
 import type { RiskMap as RiskMapData } from '../../lib/api'
 import { useTheme } from '../../hooks/useTheme'
 import { projectRiskMap } from '../../lib/riskGeo'
@@ -12,6 +13,9 @@ interface RiskMapProps {
   onSelect: (ubigeo: string) => void
   /** Vuelve a la ubicación del usuario (selecciona su distrito). */
   onLocate: () => void
+  /** Mapa agrandado: ocupa todo el alto disponible en lugar de ser cuadrado. */
+  expanded: boolean
+  onToggleExpanded: () => void
 }
 
 const MIN_ZOOM = 1
@@ -25,7 +29,7 @@ const controlButton =
  * distritos reales y sus nombres; cada uno se puede tocar para ver su detalle. El zoom escala desde el centro,
  * donde está el usuario, y al acercar aparecen más nombres.
  */
-const RiskMap: FC<RiskMapProps> = ({ map, selected, onSelect, onLocate }) => {
+const RiskMap: FC<RiskMapProps> = ({ map, selected, onSelect, onLocate, expanded, onToggleExpanded }) => {
   const [zoom, setZoom] = useState(1)
   const changeZoom = (delta: number) => setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z + delta)))
   const geo = useMemo(() => projectRiskMap(map), [map])
@@ -36,13 +40,20 @@ const RiskMap: FC<RiskMapProps> = ({ map, selected, onSelect, onLocate }) => {
   const paths = [...geo.paths].sort((a, b) => Number(a.f.properties.ubigeo === selected) - Number(b.f.properties.ubigeo === selected))
 
   return (
-    <div ref={boxRef} className="relative aspect-square w-full overflow-hidden rounded-3xl border border-slate-200 bg-[#e9f3fa] dark:border-cyan-400/25 dark:bg-[#0a1524]">
+    <div
+      ref={boxRef}
+      className={clsx(
+        'relative w-full overflow-hidden rounded-3xl border border-slate-200 bg-[#e9f3fa] dark:border-cyan-400/25 dark:bg-[#0a1524]',
+        expanded ? 'h-full' : 'aspect-square',
+      )}
+    >
       <div className="absolute inset-0 bg-map-grid" aria-hidden />
-      <BaseMapTiles geo={geo} width={width} height={height} zoom={zoom} dark={isDark} />
+      <BaseMapTiles geo={geo} width={width} height={height} zoom={zoom} dark={isDark} fit={expanded} />
 
       <svg
         viewBox={geo.viewBox}
-        preserveAspectRatio="xMidYMid slice"
+        // Agrandado, el área completa entra en pantalla (y se ve más alrededor); recortarla escondería distritos
+        preserveAspectRatio={expanded ? 'xMidYMid meet' : 'xMidYMid slice'}
         className="absolute inset-0 h-full w-full transition-transform duration-300"
         style={{ transform: `scale(${zoom})` }}
         role="group"
@@ -70,7 +81,7 @@ const RiskMap: FC<RiskMapProps> = ({ map, selected, onSelect, onLocate }) => {
             />
           )
         })}
-        <DistrictLabels geo={geo} width={width} height={height} zoom={zoom} highlight={selected} />
+        <DistrictLabels geo={geo} width={width} height={height} zoom={zoom} highlight={selected} fit={expanded} />
       </svg>
 
       <MapAttribution className="bottom-2.5 right-3" />
@@ -86,8 +97,17 @@ const RiskMap: FC<RiskMapProps> = ({ map, selected, onSelect, onLocate }) => {
         </div>
       </div>
 
-      {/* Controles: acercar, alejar y volver a mi ubicación */}
+      {/* Controles: agrandar o reducir el mapa, acercar, alejar y volver a mi ubicación */}
       <div className="absolute right-3 top-3 flex flex-col gap-2">
+        <button
+          type="button"
+          aria-label={expanded ? 'Reducir mapa' : 'Agrandar mapa'}
+          aria-pressed={expanded}
+          onClick={onToggleExpanded}
+          className={`${controlButton} !border-cyan-400/50 !text-cyan-500 dark:!text-cyan-300`}
+        >
+          {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        </button>
         <button type="button" aria-label="Acercar mapa" onClick={() => changeZoom(0.5)} disabled={zoom >= MAX_ZOOM} className={controlButton}>
           <Plus className="h-4 w-4" />
         </button>

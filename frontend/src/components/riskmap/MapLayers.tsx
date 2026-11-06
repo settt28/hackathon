@@ -54,9 +54,9 @@ const tileUrl = (z: number, x: number, y: number) =>
  * y solo agrega el trazado urbano. Sin internet los mosaicos no cargan y queda la cuadrícula de siempre.
  * Con zoom se suma una capa más nítida encima de la base, que se mantiene mientras carga.
  */
-export function BaseMapTiles({ geo, width, height, zoom, dark }: { geo: Projection; width: number; height: number; zoom: number; dark: boolean }) {
+export function BaseMapTiles({ geo, width, height, zoom, dark, fit }: { geo: Projection; width: number; height: number; zoom: number; dark: boolean; fit?: boolean }) {
   if (!width || !height) return null
-  const s = pxPerUnit(geo, width, height)
+  const s = pxPerUnit(geo, width, height, fit)
   const layers = [tilesFor(geo, width, height, s, 1)]
   if (zoom > 1) {
     const detail = tilesFor(geo, width, height, s, zoom)
@@ -113,9 +113,9 @@ const LABEL_PX = 9
  * Nombres de los distritos dentro del SVG. Solo aparecen donde caben sin chocar (primero el tuyo y los más grandes),
  * así al acercar el mapa se van mostrando más. El tamaño de letra es fijo en pantalla aunque se use el zoom.
  */
-export function DistrictLabels({ geo, width, height, zoom, highlight }: { geo: Projection; width: number; height: number; zoom: number; highlight?: string }) {
+export function DistrictLabels({ geo, width, height, zoom, highlight, fit }: { geo: Projection; width: number; height: number; zoom: number; highlight?: string; fit?: boolean }) {
   if (!width || !height) return null
-  const k = pxPerUnit(geo, width, height) * zoom // px de pantalla por unidad
+  const k = pxPerUnit(geo, width, height, fit) * zoom // px de pantalla por unidad
   const visibleHalfX = width / (2 * k)
   const visibleHalfY = height / (2 * k)
   const placed: { x0: number; y0: number; x1: number; y1: number }[] = []

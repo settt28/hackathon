@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Preventivo El Niño</string>
-    <string name="title_activity_main">Preventivo El Niño</string>
+    <string name="app_name">Paty</string>
+    <string name="title_activity_main">Paty</string>
     <string name="package_name">com.elnino.preventivo</string>
     <string name="custom_url_scheme">com.elnino.preventivo</string>
 </resources>

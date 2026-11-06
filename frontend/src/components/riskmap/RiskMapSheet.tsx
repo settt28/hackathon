@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FC } from 'react'
-import { History, MapPin, X } from 'lucide-react'
+import clsx from 'clsx'
+import { ChevronUp, History, MapPin, X } from 'lucide-react'
 import type { RiskMapState } from '../../hooks/useRiskMap'
 import { useBackHandler } from '../../hooks/useBackHandler'
 import RiskMap from './RiskMap'
@@ -19,28 +20,36 @@ interface RiskMapSheetProps {
  * Pop-up "Riesgo en tu zona" (hoja inferior a pantalla completa): mapa grande de los distritos reales,
  * leyenda y el detalle del distrito tocado, con todos los motivos de su nivel.
  * Se cierra con la X, tocando el fondo oscuro o con la tecla Escape.
+ * El botón de agrandar lleva el mapa a toda la pantalla; el detalle y el historial vuelven al reducirlo.
+ * Con el mapa agrandado, "atrás" y Escape lo reducen en lugar de cerrar el pop-up.
  */
 const RiskMapSheet: FC<RiskMapSheetProps> = ({ open, onClose, onViewHistory, state, retry }) => {
   const map = state.kind === 'ok' ? state.map : null
   const mine = map?.features.find((f) => f.properties.esTuDistrito) ?? map?.features[0] ?? null
   const [selected, setSelected] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
   const closeRef = useRef<HTMLButtonElement>(null)
   // "Atrás" de Android con el pop-up abierto: lo cierra y deja al usuario en el inicio
   useBackHandler(open, onClose)
+  // Con el mapa agrandado, "atrás" primero lo reduce (se registra después, así que tiene prioridad)
+  useBackHandler(open && expanded, () => setExpanded(false))
 
-  // Siempre el onClose más reciente: el foco no salta al botón de cerrar cada vez que el mapa se refresca
-  const onCloseRef = useRef(onClose)
+  // Siempre la acción más reciente: el foco no salta al botón de cerrar cada vez que el mapa se refresca
+  const onEscapeRef = useRef(onClose)
   useEffect(() => {
-    onCloseRef.current = onClose
+    onEscapeRef.current = expanded ? () => setExpanded(false) : onClose
   })
 
-  // Escape para cerrar + foco inicial en el botón de cerrar (solo al abrir)
+  // Escape para reducir o cerrar + foco inicial en el botón de cerrar (solo al abrir). Cada apertura empieza con el mapa normal
   useEffect(() => {
     if (!open) return
     closeRef.current?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCloseRef.current()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onEscapeRef.current()
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      setExpanded(false)
+    }
   }, [open])
 
   if (!open) return null
@@ -51,7 +60,11 @@ const RiskMapSheet: FC<RiskMapSheetProps> = ({ open, onClose, onViewHistory, sta
     // Móvil: hoja inferior. Tablet/PC (@3xl): ventana centrada con el mapa y el detalle lado a lado
     <div
       // Fondo oscuro sobre toda la pantalla (también detrás de las barras del celular); la hoja empieza bajo la barra de estado
-      className="absolute inset-0 z-50 flex flex-col justify-end pt-[var(--safe-top)] @3xl:items-center @3xl:justify-center @3xl:p-8 @3xl:pt-[calc(2rem+var(--safe-top))]">
+      className={clsx(
+        'absolute inset-0 z-50 flex flex-col justify-end pt-[var(--safe-top)]',
+        !expanded && '@3xl:items-center @3xl:justify-center @3xl:p-8 @3xl:pt-[calc(2rem+var(--safe-top))]',
+      )}
+    >
       {/* Fondo oscuro: tocarlo cierra el pop-up */}
       <button type="button" aria-label="Cerrar mapa de riesgo" onClick={onClose} className="absolute inset-0 bg-slate-950/60 motion-safe:animate-fade-in" tabIndex={-1} />
 
@@ -59,10 +72,16 @@ const RiskMapSheet: FC<RiskMapSheetProps> = ({ open, onClose, onViewHistory, sta
         role="dialog"
         aria-modal="true"
         aria-labelledby="riesgo-titulo"
-        className="@container relative max-h-[94%] overflow-y-auto rounded-t-[2rem] border-t border-slate-200 bg-white px-4 pb-[max(1.5rem,var(--safe-bottom))] pt-2 shadow-2xl motion-safe:animate-sheet-up dark:border-cyan-400/20 dark:bg-[#0b1a26] @3xl:max-h-full @3xl:w-full @3xl:max-w-5xl @3xl:rounded-[2rem] @3xl:border @3xl:px-6 @3xl:pb-6 @3xl:pt-5 @3xl:motion-safe:animate-[alert-in_.25s_ease-out]"
+        className={clsx(
+          // La animación va fuera de la condición: si cambiara de clase, se repetiría al agrandar o reducir
+          '@container relative border-slate-200 bg-white px-4 shadow-2xl motion-safe:animate-sheet-up dark:border-cyan-400/20 dark:bg-[#0b1a26] @3xl:motion-safe:animate-[alert-in_.25s_ease-out]',
+          expanded
+            ? 'flex h-full w-full flex-col overflow-hidden pb-[max(0.75rem,var(--safe-bottom))] pt-3 @3xl:px-6'
+            : 'max-h-[94%] overflow-y-auto rounded-t-[2rem] border-t pb-[max(1.5rem,var(--safe-bottom))] pt-2 @3xl:max-h-full @3xl:w-full @3xl:max-w-5xl @3xl:rounded-[2rem] @3xl:border @3xl:px-6 @3xl:pb-6 @3xl:pt-5',
+        )}
       >
         {/* Asa de arrastre (visual, solo en la hoja inferior del móvil) */}
-        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-white/20 @2xl:hidden" aria-hidden />
+        {!expanded && <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-white/20 @2xl:hidden" aria-hidden />}
 
         <header className="flex items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-sky-50 dark:border-cyan-400/30 dark:bg-transparent">
@@ -87,16 +106,43 @@ const RiskMapSheet: FC<RiskMapSheetProps> = ({ open, onClose, onViewHistory, sta
 
         {map && current ? (
           // Con espacio (@2xl de la propia ventana): mapa a la izquierda; leyenda y detalle a la derecha
-          <div className="@2xl:mt-4 @2xl:grid @2xl:grid-cols-2 @2xl:items-start @2xl:gap-6">
-            <div className="mt-3 @2xl:mt-0">
-              <RiskMap map={map} selected={current.properties.ubigeo} onSelect={setSelected} onLocate={() => setSelected(null)} />
+          // Agrandado: el mapa llena el alto; en un celular horizontal la leyenda pasa al costado para no quitarle altura
+          <div className={expanded ? 'mt-3 flex min-h-0 flex-1 flex-col short:mt-2 short:flex-row short:gap-3' :'@2xl:mt-4 @2xl:grid @2xl:grid-cols-2 @2xl:items-start @2xl:gap-6'}>
+            <div className={expanded ? 'min-h-0 flex-1' : 'mt-3 @2xl:mt-0'}>
+              <RiskMap
+                map={map}
+                selected={current.properties.ubigeo}
+                onSelect={setSelected}
+                onLocate={() => setSelected(null)}
+                expanded={expanded}
+                onToggleExpanded={() => setExpanded((e) => !e)}
+              />
             </div>
-            <div>
-              <RiskLegend legend={map.leyenda} />
-              <p className="mt-2 text-center text-[11px] text-slate-500 dark:text-slate-400 @2xl:text-left">Toca un distrito para ver su detalle.</p>
-              <DistrictDetail district={current} />
-              <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{map.aviso}</p>
-            </div>
+            {expanded ? (
+              <div className="short:w-52 short:shrink-0 short:overflow-y-auto">
+                <RiskLegend legend={map.leyenda} />
+                {/* El distrito tocado, en una línea: el detalle completo está al reducir el mapa */}
+                <button
+                  type="button"
+                  onClick={() => setExpanded(false)}
+                  className="mt-2 flex min-h-11 w-full items-center gap-2 rounded-2xl border border-slate-200 px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:border-cyan-400/20 dark:hover:bg-white/5 dark:focus-visible:ring-cyan-400"
+                >
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: current.properties.color }} aria-hidden />
+                  <span className="min-w-0 flex-1 truncate font-bold text-slate-900 dark:text-white">
+                    {current.properties.nombre}: riesgo {current.properties.nivel}
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold text-sky-700 dark:text-cyan-300">Ver detalle</span>
+                  <ChevronUp className="h-4 w-4 shrink-0 text-sky-700 dark:text-cyan-300" aria-hidden />
+                </button>
+              </div>
+            ) : (
+              <div>
+                <RiskLegend legend={map.leyenda} />
+                <p className="mt-2 text-center text-[11px] text-slate-500 dark:text-slate-400 @2xl:text-left">Toca un distrito para ver su detalle.</p>
+                <DistrictDetail district={current} />
+                <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{map.aviso}</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="my-10 flex flex-col items-center gap-3 text-center text-sm text-slate-600 dark:text-slate-300">
@@ -109,14 +155,16 @@ const RiskMapSheet: FC<RiskMapSheetProps> = ({ open, onClose, onViewHistory, sta
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={onViewHistory}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-500 py-3 text-[15px] font-bold text-white transition-colors hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 active:scale-[0.98] dark:bg-cyan-400 dark:text-[#070d17] dark:hover:bg-cyan-300"
-        >
-          <History className="h-5 w-5" aria-hidden />
-          Ver historial del distrito
-        </button>
+        {!expanded && (
+          <button
+            type="button"
+            onClick={onViewHistory}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-500 py-3 text-[15px] font-bold text-white transition-colors hover:bg-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 active:scale-[0.98] dark:bg-cyan-400 dark:text-[#070d17] dark:hover:bg-cyan-300"
+          >
+            <History className="h-5 w-5" aria-hidden />
+            Ver historial del distrito
+          </button>
+        )}
       </section>
     </div>
   )

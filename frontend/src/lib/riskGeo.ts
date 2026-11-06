@@ -113,4 +113,5 @@ export const formatProbability = (p?: number | null) =>
   p == null ? '—' : p < 0.005 ? 'menos de 1 %' : `${Math.round(p * 100)} %`
 
 /** Píxeles de pantalla por unidad del SVG con preserveAspectRatio="xMidYMid slice" (sin el zoom de los botones). */
-export const pxPerUnit = (geo: Projection, width: number, height: number) => Math.max(width, height) / (2 * geo.half)
+export const pxPerUnit = (geo: Projection, width: number, height: number, fit = false) =>
+  (fit ? Math.min(width, height) : Math.max(width, height)) / (2 * geo.half)
