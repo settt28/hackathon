@@ -9,11 +9,11 @@ interface PatyHeroProps {
 export default function PatyHero({ greeting, userName }: PatyHeroProps) {
   return (
     <section className="flex flex-col items-center px-6 pt-8 text-center">
-      <PatyLogo />
-      <h2 className="mt-6 text-[26px] font-bold leading-tight text-white">
-        {greeting}, <span className="text-yellow-400">{userName}</span>
+      <PatyLogo glowClassName="bg-sky-300/30 dark:bg-cyan-400/20" />
+      <h2 className="mt-6 text-[26px] font-bold leading-tight text-slate-900 dark:text-white">
+        {greeting}, <span className="text-sky-600 dark:text-cyan-300">{userName}</span>
       </h2>
-      <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-400">
+      <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-500 dark:text-cyan-200/60">
         Tu asistente oficial para el pronóstico del tiempo, alertas y monitoreo ambiental en todo el Perú.
       </p>
     </section>

@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  /* Color de las líneas del mapa según el tema */
+  :root {
+    --map-grid-color: rgba(14, 165, 233, 0.13);
+  }
+  .dark {
+    --map-grid-color: rgba(34, 211, 238, 0.07);
+  }
+}
+
+@layer utilities {
+  /* Cuadrícula tipo mapa para MapCard */
+  .bg-map-grid {
+    background-image:
+      linear-gradient(var(--map-grid-color) 1px, transparent 1px),
+      linear-gradient(90deg, var(--map-grid-color) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+}
