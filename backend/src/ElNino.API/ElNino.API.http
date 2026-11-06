@@ -1,0 +1,6 @@
+@ElNino.API_HostAddress = http://localhost:5261
+
+GET {{ElNino.API_HostAddress}}/api/salud/alertas/
+Accept: application/json
+
+###
