@@ -1,13 +1,17 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
-export type RiskLevel = 'bajo' | 'medio' | 'alto'
+export type RiskLevel = 'bajo' | 'medio' | 'alto' | 'critico' | 'sinAlertas' | 'sinDatos'
 
 // Clases completas por nivel para que Tailwind las incluya en el build
 const RISK_STYLES: Record<RiskLevel, { label: string; className: string }> = {
   bajo: { label: 'Riesgo bajo', className: 'bg-green-100 text-green-800' },
   medio: { label: 'Riesgo medio', className: 'bg-yellow-100 text-yellow-800' },
   alto: { label: 'Riesgo alto', className: 'bg-red-100 text-red-700' },
+  critico: { label: 'Riesgo crítico', className: 'bg-red-700 text-white' },
+  // "Sin alertas" y "Sin datos" no son "riesgo bajo": no hay que afirmar seguridad que no se conoce
+  sinAlertas: { label: 'Sin alertas', className: 'bg-slate-100 text-slate-700' },
+  sinDatos: { label: 'Sin datos', className: 'bg-slate-100 text-slate-500' },
 }
 
 type SummaryCardProps = {

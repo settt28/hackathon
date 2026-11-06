@@ -81,3 +81,51 @@ export interface PatyRequest {
 
 export const sendPatyMessage = (req: PatyRequest, signal?: AbortSignal) =>
   api<PatyReply>('/api/paty/chat', { method: 'POST', body: JSON.stringify(req), signal, timeoutMs: 30000 })
+
+// ---- Alertas y consejos por dominio (ElNino.API/Controllers/DomainControllerBase.cs) ----
+
+/** Segmento de la ruta de cada dominio: /api/{dominio}/alertas. */
+export type Dominio = 'salud' | 'agricultura' | 'infraestructura'
+
+export type AlertLevel = 'Bajo' | 'Medio' | 'Alto' | 'Critico'
+
+export interface Alert {
+  id: string
+  domain: string
+  level: AlertLevel
+  title: string
+  description: string
+  region: string
+  ubigeo: string
+  hazard: string
+  source: string
+  expiresAt: string | null
+}
+
+export interface PreventionTip {
+  id: string
+  hazard: string
+  phase: 'Antes' | 'Durante' | 'Despues'
+  title: string
+  steps: string[]
+  source: string
+  sourceUrl: string
+}
+
+export interface UserLocation {
+  ubigeo: string
+  district: string
+  province: string
+  department: string
+  exact: boolean
+  distanceKm: number | null
+}
+
+export const getAlertas = (dominio: Dominio, signal?: AbortSignal) =>
+  api<Alert[]>(`/api/${dominio}/alertas`, { signal })
+
+export const getConsejos = (dominio: Dominio, signal?: AbortSignal) =>
+  api<PreventionTip[]>(`/api/${dominio}/consejos`, { signal })
+
+export const getUbicacion = (lat: number, lon: number) =>
+  api<UserLocation>(`/api/ubicacion?lat=${lat}&lon=${lon}`)

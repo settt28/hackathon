@@ -16,12 +16,19 @@ public abstract class DomainControllerBase(
     IRepository<PreventionTip> tips,
     TipSearchService tipSearch) : ControllerBase
 {
-    /// <summary>Alertas del dominio. Con ?ubigeo= devuelve solo las vigentes de ese distrito.</summary>
+    /// <summary>
+    /// Alertas vigentes del dominio. Filtros opcionales:
+    /// ?ubigeo= solo ese distrito, ?incluirVencidas=true suma las ya vencidas (historial).
+    /// </summary>
     [HttpGet("alertas")]
-    public async Task<IActionResult> GetAlertas([FromQuery] string? ubigeo, CancellationToken ct) =>
-        string.IsNullOrWhiteSpace(ubigeo)
-            ? Ok(await alerts.GetByDomainAsync(domain, ct))
-            : Ok(await alerts.GetActiveAsync(ubigeo, domain, ct));
+    public async Task<IActionResult> GetAlertas(
+        [FromQuery] string? ubigeo, [FromQuery] bool incluirVencidas = false, CancellationToken ct = default)
+    {
+        if (!incluirVencidas) return Ok(await alerts.GetActiveAsync(ubigeo, domain, ct));
+
+        var todas = await alerts.GetByDomainAsync(domain, ct);
+        return Ok(string.IsNullOrWhiteSpace(ubigeo) ? todas : todas.Where(a => a.Ubigeo == ubigeo));
+    }
 
     /// <summary>
     /// Consejos preventivos del dominio. Filtros opcionales:
