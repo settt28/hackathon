@@ -1,55 +1,14 @@
-import { useEffect, useMemo, useState, type FC } from 'react'
-import { MapPin, Minus, Navigation, Plus, RefreshCcw, X } from 'lucide-react'
+import { useMemo, useState, type FC } from 'react'
+import { MapPin, Minus, Navigation2, Plus, RefreshCcw, X } from 'lucide-react'
 import clsx from 'clsx'
-import { getMapaRiesgo, type RiskDistrict, type RiskMap } from '../../lib/api'
-import { getPosition } from '../../lib/geo'
+import type { RiskDistrict, RiskMap } from '../../lib/api'
+import type { RiskMapState } from '../../hooks/useRiskMap'
 
 const MIN_ZOOM = 1
 const MAX_ZOOM = 3
 
 const zoomButton =
   'flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-sky-300 hover:text-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 disabled:opacity-40 dark:border-white/15 dark:bg-[#0d1828]/90 dark:text-white dark:shadow-none dark:hover:border-cyan-400/50 dark:hover:text-cyan-300 dark:focus-visible:ring-cyan-400'
-
-type State =
-  | { kind: 'loading' }
-  | { kind: 'no-gps' }
-  | { kind: 'error'; message: string }
-  | { kind: 'ok'; map: RiskMap }
-
-/** Pide el mapa de riesgo de la zona del usuario y lo refresca cada `actualizarCadaSegundos`. */
-function useRiskMap() {
-  const [state, setState] = useState<State>({ kind: 'loading' })
-  const [attempt, setAttempt] = useState(0)
-
-  useEffect(() => {
-    const ctrl = new AbortController()
-    const refresh: { timer?: ReturnType<typeof setTimeout> } = {}
-
-    const load = async () => {
-      const pos = await getPosition()
-      if (ctrl.signal.aborted) return
-      if (!pos) return setState({ kind: 'no-gps' })
-      try {
-        const map = await getMapaRiesgo(pos.latitude, pos.longitude, ctrl.signal)
-        setState({ kind: 'ok', map })
-        refresh.timer = setTimeout(load, Math.max(60, map.actualizarCadaSegundos) * 1000)
-      } catch (e) {
-        if (!ctrl.signal.aborted) setState({ kind: 'error', message: (e as Error).message })
-      }
-    }
-    void load()
-    return () => {
-      ctrl.abort()
-      clearTimeout(refresh.timer)
-    }
-  }, [attempt])
-
-  const retry = () => {
-    setState({ kind: 'loading' })
-    setAttempt((a) => a + 1)
-  }
-  return { state, retry }
-}
 
 /** Polígonos de cada distrito, sin importar si vienen como Polygon o MultiPolygon. */
 const polygonsOf = (f: RiskDistrict) => (f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates)
@@ -80,9 +39,11 @@ function project(map: RiskMap) {
   }
 }
 
-/** Tarjeta de ubicación en vivo: distritos alrededor del usuario coloreados por nivel de riesgo estimado. */
-const MapCard: FC = () => {
-  const { state, retry } = useRiskMap()
+/**
+ * Tarjeta de ubicación en vivo: distritos alrededor del usuario coloreados por nivel de riesgo estimado.
+ * En modo oscuro es translúcida para dejar ver la silueta del Perú del fondo.
+ */
+const MapCard: FC<{ state: RiskMapState; retry: () => void }> = ({ state, retry }) => {
   const [zoom, setZoom] = useState(1)
   const [selected, setSelected] = useState<RiskDistrict | null>(null)
   const changeZoom = (delta: number) => setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z + delta)))
@@ -95,7 +56,7 @@ const MapCard: FC = () => {
   return (
     <section
       aria-label="Mapa de riesgo de tu zona"
-      className="relative h-80 overflow-hidden rounded-3xl border border-slate-200 bg-[#e9f3fa] shadow-sm dark:border-cyan-400/15 dark:bg-[#0a1524] dark:shadow-none"
+      className="relative h-80 overflow-hidden rounded-3xl border border-slate-200 bg-[#e9f3fa] shadow-sm dark:border-cyan-400/25 dark:bg-[#0a1524]/60 dark:shadow-none"
     >
       <div className="absolute inset-0 bg-map-grid" aria-hidden />
 
@@ -172,10 +133,11 @@ const MapCard: FC = () => {
         <>
           {/* Marcador del usuario: el viewBox está centrado en él, así que va fijo al centro (también con zoom) */}
           <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div className="relative flex h-9 w-9 items-center justify-center">
+            <div className="relative flex h-10 w-10 items-center justify-center">
+              <span className="absolute -inset-3 rounded-full bg-cyan-400/15" aria-hidden />
               <span className="absolute inset-0 rounded-full bg-cyan-400/40 motion-safe:animate-pulse-ring" aria-hidden />
-              <span className="relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.5)] dark:bg-cyan-400">
-                <Navigation className="h-4 w-4 -rotate-45 fill-white text-white" aria-hidden />
+              <span className="relative flex h-10 w-10 items-center justify-center rounded-full border-[3px] border-white bg-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.5)] dark:border-cyan-100 dark:bg-cyan-400">
+                <Navigation2 className="h-4 w-4 fill-white text-white" aria-hidden />
               </span>
             </div>
           </div>

@@ -1,46 +1,79 @@
 import type { FC } from 'react'
-import { ChevronRight, Smile } from 'lucide-react'
+import clsx from 'clsx'
+
+export type StatusTone = 'ok' | 'warn' | 'danger' | 'neutral'
 
 interface StatusBadgeProps {
-  level: number
-  onOpenProfile?: () => void
+  /** Etiqueta bajo el avatar, ej. "RIESGO BAJO". */
+  zoneLabel: string
+  /** Mensaje principal de estado. */
+  message: string
+  /** Color y gesto del avatar: solo "ok" sonríe; nunca se muestra calma sin datos que la respalden. */
+  tone: StatusTone
 }
 
-/**
- * Avatar de estado con anillos animados, nivel del usuario y saludo.
- * CAMBIOS: el saludo ahora dice solo "Hola" y se eliminó el subtítulo
- * "Monitoreo activo • Perfil al 75% completado" (props `status` y `profileCompletion` ya no se usan).
- */
-const StatusBadge: FC<StatusBadgeProps> = ({ level, onOpenProfile }) => (
-  <section className="mt-4 flex flex-col items-center">
-    <div className="relative flex h-24 w-24 items-center justify-center">
-      {/* Anillo punteado exterior + onda pulsante */}
-      <span className="absolute inset-0 rounded-full border border-dashed border-emerald-300 dark:border-cyan-400/40" aria-hidden />
-      <span className="absolute inset-3 rounded-full border border-emerald-400/50 motion-safe:animate-pulse-ring dark:border-emerald-400/40" aria-hidden />
+// Clases completas por tono para que Tailwind las incluya en el build
+const TONES: Record<StatusTone, { ring: string; pulse: string; disc: string; badge: string; mouth: string }> = {
+  ok: {
+    ring: 'border-emerald-300 dark:border-cyan-400/35',
+    pulse: 'border-emerald-400/50 dark:border-emerald-400/40',
+    disc: 'border-emerald-400 shadow-[0_0_24px_rgba(16,185,129,0.3)] dark:bg-[#0b1f1c] dark:shadow-[0_0_28px_rgba(52,211,153,0.35)]',
+    badge: 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-400 dark:bg-[#0b2a22] dark:text-emerald-200',
+    mouth: 'M15.5 29 Q26 40 36.5 29',
+  },
+  warn: {
+    ring: 'border-amber-300 dark:border-amber-400/40',
+    pulse: 'border-amber-400/60 dark:border-amber-400/50',
+    disc: 'border-amber-400 shadow-[0_0_24px_rgba(245,158,11,0.3)] dark:bg-[#1f1a0b] dark:shadow-[0_0_28px_rgba(251,191,36,0.35)]',
+    badge: 'border-amber-500 bg-amber-50 text-amber-800 dark:border-amber-400 dark:bg-[#2a220b] dark:text-amber-200',
+    mouth: 'M16.5 32 L35.5 32',
+  },
+  danger: {
+    ring: 'border-red-300 dark:border-red-400/40',
+    pulse: 'border-red-400/60 dark:border-red-400/50',
+    disc: 'border-red-500 shadow-[0_0_24px_rgba(239,68,68,0.35)] dark:bg-[#1f0b0e] dark:shadow-[0_0_28px_rgba(248,113,113,0.4)]',
+    badge: 'border-red-500 bg-red-50 text-red-700 dark:border-red-400 dark:bg-[#2a0b10] dark:text-red-200',
+    mouth: 'M16.5 35 Q26 27 35.5 35',
+  },
+  neutral: {
+    ring: 'border-slate-300 dark:border-white/20',
+    pulse: 'border-slate-300/60 dark:border-white/15',
+    disc: 'border-slate-300 dark:border-white/30 dark:bg-[#111826]',
+    badge: 'border-slate-300 bg-slate-50 text-slate-600 dark:border-white/25 dark:bg-white/5 dark:text-slate-300',
+    mouth: 'M16.5 32 L35.5 32',
+  },
+}
 
-      {/* Disco central con brillo esmeralda */}
-      <div className="relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-emerald-400 bg-white shadow-[0_0_20px_rgba(16,185,129,0.25)] dark:border-emerald-400/70 dark:bg-[#0b1a1f] dark:shadow-[0_0_24px_rgba(52,211,153,0.35)]">
-        {/* Carita: círculo amarillo con el trazo del ícono encima */}
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-300 shadow-[0_0_14px_rgba(251,191,36,0.4)] dark:bg-yellow-400 dark:shadow-[0_0_14px_rgba(250,204,21,0.45)]">
-          <Smile className="h-9 w-9 text-amber-700 dark:text-[#0b1a1f]" strokeWidth={2.25} aria-hidden />
+/** Avatar de estado con anillos animados, etiqueta de riesgo de la zona y mensaje. */
+const StatusBadge: FC<StatusBadgeProps> = ({ zoneLabel, message, tone }) => {
+  const t = TONES[tone]
+  return (
+    <section className="mt-3 flex flex-col items-center" aria-live="polite">
+      <div className="relative flex h-[120px] w-[120px] items-center justify-center">
+        {/* Anillo punteado exterior + onda pulsante */}
+        <span className={clsx('absolute inset-0 rounded-full border border-dashed', t.ring)} aria-hidden />
+        <span className={clsx('absolute inset-5 rounded-full border motion-safe:animate-pulse-ring', t.pulse)} aria-hidden />
+
+        {/* Disco central con borde grueso y brillo del color del riesgo */}
+        <div className={clsx('relative flex h-20 w-20 items-center justify-center rounded-full border-4 bg-white', t.disc)}>
+          <svg viewBox="0 0 52 52" className="h-[52px] w-[52px]" aria-hidden>
+            <circle cx="26" cy="26" r="26" className="fill-amber-300 dark:fill-yellow-400" />
+            <g className="fill-amber-800 stroke-amber-800 dark:fill-[#0b1f1c] dark:stroke-[#0b1f1c]">
+              <ellipse cx="18.5" cy="20" rx="2.6" ry="3.4" stroke="none" />
+              <ellipse cx="33.5" cy="20" rx="2.6" ry="3.4" stroke="none" />
+              <path d={t.mouth} fill="none" strokeWidth="3.4" strokeLinecap="round" />
+            </g>
+          </svg>
+        </div>
+
+        <span className={clsx('absolute -bottom-3 whitespace-nowrap rounded-full border px-5 py-1 text-xs font-extrabold tracking-[0.14em]', t.badge)}>
+          {zoneLabel}
         </span>
       </div>
 
-      <span className="absolute -bottom-1 rounded-full bg-emerald-500 px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white shadow-[0_0_12px_rgba(16,185,129,0.4)] dark:bg-emerald-400 dark:text-[#06281d] dark:shadow-[0_0_12px_rgba(52,211,153,0.5)]">
-        NIVEL {level}
-      </span>
-    </div>
-
-    {/* CAMBIO: saludo simplificado */}
-    <button
-      type="button"
-      onClick={onOpenProfile}
-      className="mt-3 flex items-center gap-1 rounded-lg px-2 text-[15px] font-bold text-slate-900 transition-colors hover:text-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:text-white dark:hover:text-cyan-200 dark:focus-visible:ring-cyan-400"
-    >
-      Hola
-      <ChevronRight className="h-4 w-4 text-emerald-600 dark:text-cyan-300" strokeWidth={3} aria-hidden />
-    </button>
-  </section>
-)
+      <h2 className="mt-5 px-4 text-center text-xl font-extrabold text-slate-900 dark:text-white">{message}</h2>
+    </section>
+  )
+}
 
 export default StatusBadge

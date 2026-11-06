@@ -6,6 +6,10 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      // Inter como fuente principal (con las fuentes del sistema como respaldo)
+      fontFamily: {
+        sans: ['"Inter Variable"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       // Rotación lenta y continua para el logo de Paty
       animation: {
         'spin-slow': 'spin 24s linear infinite',
