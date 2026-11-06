@@ -100,7 +100,7 @@ http://localhost:5173/?lat=-11.9369&lon=-76.6966
 
 ### Preguntas para el chat
 
-- `hay un huaico` → emergencia: botones para llamar al 116 y al 115, y qué hacer mientras llega la ayuda
+- `hay un huaico` → emergencia: botones para llamar al 911 (en Lima y Callao), al 116 y al 115, y qué hacer mientras llega la ayuda
 - `¿cómo evito el dengue?` → pasos del MINSA con su fuente
 - `¿qué riesgo hay en mi zona?` → historial del INDECI y la probabilidad del modelo de riesgo para este mes
 - `mi hijo tiene fiebre y le sangra la nariz` → emergencia médica: llamar al SAMU (106)

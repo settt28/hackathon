@@ -132,7 +132,7 @@ public partial class PatyService(
                 emergencyOnly: tri.Level == TriageLevel.Grave, ct);
         }
 
-        var actions = BuildActions(tri, wantsCenter, nearest);
+        var actions = BuildActions(tri, wantsCenter, nearest, ubigeo);
 
         // 5) Respuesta: primero intenta la IA; si no hay IA o falla, usa la plantilla
         string? aiText = null;
@@ -146,12 +146,12 @@ public partial class PatyService(
         }
 
         var reply = string.IsNullOrWhiteSpace(aiText)
-            ? BuildTemplateReply(tri, tips, zoneWarnings, notices, nearest, wantsCenter)
+            ? BuildTemplateReply(tri, tips, zoneWarnings, notices, nearest, wantsCenter, ubigeo)
             : aiText.Trim();
 
         // En emergencia grave, el aviso de llamar va siempre primero, aunque responda la IA
         if (tri.Level == TriageLevel.Grave && !string.IsNullOrWhiteSpace(aiText))
-            reply = $"⚠️ Esto puede ser una emergencia. Llama al {tri.PhoneNumber} ({tri.PhoneLabel}) ahora.\n\n{reply}";
+            reply = $"⚠️ Esto puede ser una emergencia. {CallNow(tri, ubigeo)}\n\n{reply}";
 
         var tipRefs = tips.Select(t => new TipReference(t.Id, t.Title, t.Domain, t.Source, t.Steps,
             t.SourceDocument, t.SourceUrl, t.SourceDate)).ToList();
@@ -197,11 +197,19 @@ public partial class PatyService(
         return i > 0 ? s[..(i + 1)] : s;
     }
 
-    private static List<PatyAction> BuildActions(TriageResult tri, bool wantsCenter, IReadOnlyList<NearbyHealthCenter> nearest)
+    /// <summary>"Llama al 116 (Bomberos) ahora." · en Lima y Callao suma el 911, que deriva a cualquier servicio.</summary>
+    private static string CallNow(TriageResult tri, string? ubigeo) =>
+        TriageService.Has911(ubigeo)
+            ? $"Llama al {TriageService.CentralNumber} o al {tri.PhoneNumber} ({tri.PhoneLabel}) ahora."
+            : $"Llama al {tri.PhoneNumber} ({tri.PhoneLabel}) ahora.";
+
+    private static List<PatyAction> BuildActions(TriageResult tri, bool wantsCenter, IReadOnlyList<NearbyHealthCenter> nearest, string? ubigeo)
     {
         var actions = new List<PatyAction>();
         if (tri.Level == TriageLevel.Grave)
         {
+            if (TriageService.Has911(ubigeo))
+                actions.Add(new PatyAction("llamar", $"Llamar al {TriageService.CentralNumber} (Central Única de Emergencias)", TriageService.CentralNumber));
             actions.Add(new PatyAction("llamar", $"Llamar al {tri.PhoneNumber} ({tri.PhoneLabel})", tri.PhoneNumber));
             if (tri.EmergencyType == EmergencyType.Desastre)
             {
@@ -215,13 +223,13 @@ public partial class PatyService(
     }
 
     private static string BuildTemplateReply(TriageResult tri, IReadOnlyList<PreventionTip> tips,
-        List<string> zoneWarnings, List<string> notices, IReadOnlyList<NearbyHealthCenter> nearest, bool wantsCenter)
+        List<string> zoneWarnings, List<string> notices, IReadOnlyList<NearbyHealthCenter> nearest, bool wantsCenter, string? ubigeo)
     {
         var sb = new StringBuilder();
 
         if (tri.Level == TriageLevel.Grave)
         {
-            sb.AppendLine($"⚠️ Esto puede ser una emergencia. Llama al {tri.PhoneNumber} ({tri.PhoneLabel}) ahora.");
+            sb.AppendLine($"⚠️ Esto puede ser una emergencia. {CallNow(tri, ubigeo)}");
             if (nearest.Count > 0)
             {
                 var n = nearest[0];

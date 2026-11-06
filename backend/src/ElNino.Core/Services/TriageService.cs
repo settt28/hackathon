@@ -14,6 +14,12 @@ public class TriageService(IRepository<AlarmKeyword> keywords)
     public const string BomberosNumber = "116";
     public const string DefensaCivilNumber = "115";
 
+    /// <summary>Central Única de Emergencias. Opera en Lima Metropolitana y Callao.</summary>
+    public const string CentralNumber = "911";
+
+    /// <summary>¿El distrito está donde opera el 911? Provincia de Lima (ubigeo 1501…) o Callao (07…).</summary>
+    public static bool Has911(string? ubigeo) => ubigeo is not null && (ubigeo.StartsWith("1501") || ubigeo.StartsWith("07"));
+
     public async Task<TriageResult> EvaluateAsync(string message, CancellationToken ct = default)
     {
         var text = TextNormalizer.Normalize(message);

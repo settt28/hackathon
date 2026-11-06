@@ -76,7 +76,7 @@ public class SyncController(
                 .GroupBy(b => b.Institution)
                 .Select(g => g.OrderByDescending(b => b.PublishedAt).First())
                 .ToList(),
-            telefonos = new { samu = "106", bomberos = "116", defensaCivil = "115", policia = "105" },
+            telefonos = new { central = "911", centralCobertura = "Lima Metropolitana y Callao", samu = "106", bomberos = "116", defensaCivil = "115", policia = "105", essalud = "117" },
         });
     }
 }

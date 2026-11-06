@@ -94,7 +94,7 @@ export default function Home() {
           icon={AlertIcon}
           iconClassName="bg-amber-50 dark:bg-amber-400/10 text-amber-600"
           to="/infraestructura"
-          extraDetails={<p className="mt-2">Emergencias: 116 (Bomberos) · 115 (Defensa Civil) · 106 (SAMU).</p>}
+          extraDetails={<p className="mt-2">Emergencias: 911 (Central Única, Lima y Callao) · 116 (Bomberos) · 115 (Defensa Civil) · 106 (SAMU).</p>}
         />
       </div>
     </div>
