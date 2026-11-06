@@ -85,15 +85,22 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
         </div>
       )}
 
+      {/* Boletines e historial: plegados, para que la respuesta se lea de un vistazo (se abren si la persona quiere) */}
       {warnings.length > 0 && (
-        <ul className="space-y-1.5 text-sm text-amber-700 dark:text-amber-200">
-          {warnings.map((w) => (
-            <li key={w} className="flex gap-2">
-              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              {w}
-            </li>
-          ))}
-        </ul>
+        <details className="group text-sm">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-300">
+            <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
+            Ver datos oficiales ({warnings.length})
+            <span className="text-xs transition-transform group-open:rotate-180" aria-hidden>
+              ▾
+            </span>
+          </summary>
+          <ul className="mt-2 space-y-1.5 text-amber-800 dark:text-amber-200">
+            {warnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {d && d.nearestCenters.length > 0 && (

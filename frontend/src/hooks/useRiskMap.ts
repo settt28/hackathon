@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getMapaRiesgo, type RiskMap } from '../lib/api'
-import { getPosition } from '../lib/geo'
+import { getPosition, onLocationMaybeAvailable } from '../lib/geo'
 
 export type RiskMapState =
   | { kind: 'loading' }
@@ -35,6 +35,13 @@ export function useRiskMap() {
       clearTimeout(refresh.timer)
     }
   }, [attempt])
+
+  // Sin ubicación todavía: reintenta solo cuando se conceda el permiso o la persona vuelva a la app
+  const waitingForGps = state.kind === 'no-gps'
+  useEffect(() => {
+    if (!waitingForGps) return
+    return onLocationMaybeAvailable(() => setAttempt((a) => a + 1))
+  }, [waitingForGps])
 
   const retry = () => {
     setState({ kind: 'loading' })

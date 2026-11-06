@@ -17,6 +17,7 @@ public partial class PatyService(
     HealthCenterService healthCenters,
     DistrictService districts,
     IRepository<Bulletin> bulletins,
+    IAlertRepository alerts,
     WeatherService weather,
     IChatModel chatModel,
     RiskModelService riskModel)
@@ -28,6 +29,13 @@ public partial class PatyService(
 
     // Palabras que piden información de la zona
     private static readonly string[] ZoneWords = ["mi zona", "zona", "historial", "antes paso", "siempre pasa", "aqui"];
+
+    // Preguntas por la situación de la zona o la propia seguridad ("¿estoy a salvo?", "¿pasa algo en mi zona?")
+    private static readonly string[] StatusWords =
+    [
+        "mi zona", "a salvo", "estoy seguro", "estoy segura", "mi seguridad", "preocupar", "preocuparme", "peligro", "incidencia",
+        "incidencias", "pasa algo", "esta pasando", "que pasa", "riesgo", "tranquilo", "tranquila", "hay alerta", "hay alertas",
+    ];
 
     // Palabras que piden el estado oficial de El Niño (comunicados del ENFEN)
     private static readonly string[] OfficialWords = ["nino", "fenomeno", "enfen", "comunicado", "boletin"];
@@ -67,21 +75,32 @@ public partial class PatyService(
         // 1) Triaje
         var tri = await triage.EvaluateAsync(req.Message, ct);
 
+        // 1b) ¿Pregunta por su zona o su seguridad? Se responde directo con los datos de hoy (no con consejos al azar)
+        var mentionedHazards = HazardWords.Where(kv => kv.Value.Any(w => TextNormalizer.ContainsTerm(text, w))).Select(kv => kv.Key).ToList();
+        ZoneStatus? status = null;
+        if (ubigeo is not null && tri.Level != TriageLevel.Grave && StatusWords.Any(w => TextNormalizer.ContainsTerm(text, w)))
+            status = await ZoneStatusAsync(ubigeo, ct);
+
         // 2) Consejos (si no hay en el sector elegido, se busca en todos).
         //    Si la pregunta es de clima, se quitan las palabras de clima: así "pronóstico de hoy" no trae consejos
         //    al azar, pero "va a llover, ¿qué hago con mi chacra?" sí trae los de la chacra.
-        var searchText = WeatherVocabulary().Replace(text, " ");
+        // En una pregunta de estado, los consejos son de preparación para el peligro principal de la zona.
+        var searchText = status is not null && mentionedHazards.Count == 0
+            ? status.PrepQuery
+            : WeatherVocabulary().Replace(text, " ");
         IReadOnlyList<PreventionTip> tips = await tipSearch.SearchAsync(searchText, req.Domain, 6, ct);
         if (tips.Count == 0 && req.Domain is not null)
             tips = await tipSearch.SearchAsync(searchText, null, 6, ct);
         // En una emergencia sirve qué hacer AHORA: primero los consejos de la fase "durante" (orden estable)
         if (tri.Level == TriageLevel.Grave)
             tips = tips.OrderBy(t => t.Phase == EventPhase.Durante ? 0 : 1).ToList();
-        tips = tips.Take(3).ToList();
+        else if (status is not null)
+            tips = tips.OrderBy(t => t.Phase == EventPhase.Antes ? 0 : 1).ToList();
+        tips = tips.Take(status is null ? 3 : 1).ToList();
 
         // 3) Historial de la zona
         var zoneWarnings = new List<string>();
-        if (ubigeo is not null)
+        if (ubigeo is not null && status is null)
         {
             var summary = await zoneHistory.GetSummaryAsync(ubigeo, maxEvents: 0, ct: ct);
             var asksZone = ZoneWords.Any(w => TextNormalizer.ContainsTerm(text, w));
@@ -106,7 +125,7 @@ public partial class PatyService(
 
         // 3b) Boletín oficial vigente del ENFEN (estado de El Niño), si la persona pregunta por El Niño o por su zona
         var notices = new List<string>();
-        if (OfficialWords.Any(w => TextNormalizer.ContainsTerm(text, w)) || ZoneWords.Any(w => TextNormalizer.ContainsTerm(text, w)))
+        if (status is null && (OfficialWords.Any(w => TextNormalizer.ContainsTerm(text, w)) || ZoneWords.Any(w => TextNormalizer.ContainsTerm(text, w))))
         {
             var latest = (await bulletins.ListAsync(b => b.Institution == "ENFEN", ct))
                 .OrderByDescending(b => b.PublishedAt).FirstOrDefault();
@@ -116,7 +135,7 @@ public partial class PatyService(
 
         // 3c) Pronóstico y avisos del SENAMHI para la zona
         var asksForecast = ForecastWords.Any(w => TextNormalizer.ContainsTerm(text, w));
-        var asksWarnings = WarningWords.Any(w => TextNormalizer.ContainsTerm(text, w));
+        var asksWarnings = status is null && WarningWords.Any(w => TextNormalizer.ContainsTerm(text, w));
         if ((asksForecast || asksWarnings) && ubigeo is not null && await districts.GetByUbigeoAsync(ubigeo, ct) is { } district)
             notices.AddRange(await WeatherNoticesAsync(district, req.Latitude, req.Longitude, asksForecast, asksWarnings, ct));
         else if (asksForecast || asksWarnings)
@@ -139,10 +158,11 @@ public partial class PatyService(
         // Sin ningún contenido oficial relacionado (consejo, historial, boletín ni emergencia), la IA no tiene en qué basarse:
         // no se la llama. Así un pedido ajeno ("cuéntame un chiste", "ignora tus reglas…") ni siquiera le llega.
         // Emergencia grave: respuesta fija y verificada, nunca generada (un modelo puede inventar indicaciones médicas)
-        var grounded = tips.Count > 0 || zoneWarnings.Count > 0 || notices.Count > 0 || nearest.Count > 0 || tri.Level != TriageLevel.Leve;
-        if (grounded && tri.Level != TriageLevel.Grave) try
+        var grounded = status is not null || tips.Count > 0 || zoneWarnings.Count > 0 || notices.Count > 0 || nearest.Count > 0 || tri.Level != TriageLevel.Leve;
+        // "¿Estoy a salvo?" se responde con los datos de hoy, ya redactados: más rápido y sin riesgo de que la IA invente
+        if (grounded && tri.Level != TriageLevel.Grave && status is null) try
         {
-            aiText = await chatModel.GenerateAsync(BuildSystemPrompt(tri, tips, zoneWarnings, notices), req.Message, ct);
+            aiText = await chatModel.GenerateAsync(BuildSystemPrompt(tri, tips, zoneWarnings, notices, status), req.Message, ct);
         }
         catch (Exception) when (!ct.IsCancellationRequested)
         {
@@ -150,7 +170,9 @@ public partial class PatyService(
         }
 
         var reply = string.IsNullOrWhiteSpace(aiText)
-            ? BuildTemplateReply(tri, tips, zoneWarnings, notices, nearest, wantsCenter, ubigeo)
+            ? status is not null
+                ? StatusReply(status, tips)
+                : BuildTemplateReply(tri, tips, zoneWarnings, notices, nearest, wantsCenter, ubigeo)
             : aiText.Trim();
 
         // En emergencia grave, el aviso de llamar va siempre primero, aunque responda la IA
@@ -160,6 +182,85 @@ public partial class PatyService(
         var tipRefs = tips.Select(t => new TipReference(t.Id, t.Title, t.Domain, t.Source, t.Steps,
             t.SourceDocument, t.SourceUrl, t.SourceDate)).ToList();
         return new PatyReply(reply, location, tri, tipRefs, zoneWarnings, notices, nearest, actions, UsedAi: !string.IsNullOrWhiteSpace(aiText));
+    }
+
+    /// <summary>Situación de la zona hoy, ya redactada para responder "¿estoy a salvo?" sin mandar a leer nada.</summary>
+    private sealed record ZoneStatus(string Answer, string PrepQuery, IReadOnlyList<string> Facts);
+
+    private async Task<ZoneStatus> ZoneStatusAsync(string ubigeo, CancellationToken ct)
+    {
+        var district = await districts.GetByUbigeoAsync(ubigeo, ct);
+        var name = district?.Name ?? "tu distrito";
+        var active = await alerts.GetActiveAsync(ubigeo, null, ct);
+        var mainHazard = (await zoneHistory.GetSummaryAsync(ubigeo, maxEvents: 0, ct: ct)).Hazards.FirstOrDefault()?.Hazard;
+        var level = (await riskModel.PredictAsync([ubigeo], ct: ct)).GetValueOrDefault(ubigeo)?.Level;
+        var enfen = (await bulletins.ListAsync(b => b.Institution == "ENFEN", ct)).MaxBy(b => b.PublishedAt);
+        var ninoAlert = enfen is not null && TextNormalizer.Normalize(enfen.AlertStatus) is var st && st.Contains("nino") && st.Contains("alerta");
+
+        // Aviso de lluvias del SENAMHI vigente (o que empieza en 2 días) que incluye la zona. Sin conexión, se omite.
+        WarningForLocation? rain = null;
+        if (district is not null)
+        {
+            try
+            {
+                var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-5));
+                rain = (await weather.GetWarningsAsync(district, false, ct))
+                    .Where(w => w.AffectsYourArea && (w.Warning.Status == "vigente" || w.Warning.StartsAt.DayNumber - today.DayNumber <= 2))
+                    .Where(w => TextNormalizer.Normalize(w.Warning.Title) is var t && (t.Contains("lluvia") || t.Contains("precipitacion")))
+                    .OrderByDescending(w => w.Relevance == "alta").ThenByDescending(w => w.Warning.Level == "ROJO")
+                    .FirstOrDefault();
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested) { }
+        }
+
+        var hazard = mainHazard is null ? "lluvias fuertes" : ZoneHistoryService.HazardName(mainHazard.Value);
+        var sb = new StringBuilder();
+        if (active.Count > 0)
+        {
+            var top = active.OrderByDescending(a => a.Level).First();
+            sb.Append(active.Count == 1
+                ? $"Sí, hay una alerta vigente en {name}: {top.Title}. "
+                : $"Sí, hay {active.Count} alertas vigentes en {name}; la principal: {top.Title}. ");
+            sb.Append("Mantén la calma y sigue las indicaciones de Defensa Civil y de tu municipalidad.");
+        }
+        else if (rain is not null)
+            sb.Append($"Hoy no hay emergencias reportadas en {name}, pero el SENAMHI tiene un aviso {rain.Warning.Level.ToLowerInvariant()} de lluvias " +
+                      $"que {(rain.Relevance == "alta" ? "incluye tu zona" : "alcanza tu región")}. No es para alarmarse: solo conviene estar atento y preparado.");
+        else
+            sb.Append($"Por ahora puedes estar en calma: no hay alertas ni emergencias reportadas en {name}.");
+
+        sb.Append(level switch
+        {
+            >= 2 => $" Eso sí, este mes el riesgo es {LevelNames[level.Value]}: aquí lo más frecuente son las emergencias por {hazard}, así que vale la pena tener todo listo.",
+            1 => " El riesgo de emergencias este mes es moderado.",
+            0 => " El riesgo de emergencias este mes es bajo.",
+            _ => "",
+        });
+        if (ninoAlert) sb.Append(" Como el ENFEN mantiene la alerta de El Niño costero, es buen momento para prepararse con calma.");
+
+        var facts = new List<string> { $"Distrito: {name}.", $"Alertas vigentes: {(active.Count == 0 ? "ninguna" : string.Join("; ", active.Select(a => a.Title)))}." };
+        facts.Add(rain is null ? "Avisos de lluvia del SENAMHI para la zona: ninguno." : $"Aviso {rain.Warning.Level} del SENAMHI: {rain.Warning.Title} ({rain.Relevance}).");
+        if (level is not null) facts.Add($"Riesgo de emergencia este mes (modelo con historial del INDECI): {LevelNames[level.Value]}.");
+        facts.Add($"Emergencias más frecuentes en el distrito: {hazard}.");
+        if (enfen is not null) facts.Add($"Estado de El Niño (ENFEN): {enfen.AlertStatus}.");
+
+        var prep = mainHazard switch
+        {
+            HazardType.Huaico => "preparate antes huaicos",
+            HazardType.Inundacion => "preparate antes inundaciones",
+            HazardType.Deslizamiento => "preparate antes deslizamiento derrumbe",
+            _ => "preparate antes lluvias huaicos inundaciones",
+        };
+        return new ZoneStatus(sb.ToString(), prep, facts);
+    }
+
+    /// <summary>Respuesta sin IA a "¿estoy a salvo?": la situación de hoy y 3 pasos para estar preparado.</summary>
+    private static string StatusReply(ZoneStatus status, IReadOnlyList<PreventionTip> tips)
+    {
+        if (tips.Count == 0) return status.Answer;
+        var t = tips[0];
+        var steps = string.Join("\n", t.Steps.Take(3).Select((x, i) => $"{i + 1}. {x}"));
+        return $"{status.Answer}\n\nPara estar preparado:\n{steps}"; // la fuente la muestra la app debajo
     }
 
     private async Task<List<string>> WeatherNoticesAsync(District district, double? lat, double? lon,
@@ -272,9 +373,8 @@ public partial class PatyService(
         {
             var main = tips[0];
             if (tri.Level != TriageLevel.Grave) sb.AppendLine($"{main.Title}:");
-            for (var i = 0; i < main.Steps.Count && i < 5; i++)
+            for (var i = 0; i < main.Steps.Count && i < 3; i++)
                 sb.AppendLine($"{i + 1}. {main.Steps[i]}");
-            sb.AppendLine($"(Fuente: {main.Source})");
 
             var others = tips.Skip(1).Select(t => $"{t.Title} ({t.Source})").ToList();
             if (others.Count > 0)
@@ -297,13 +397,15 @@ public partial class PatyService(
     }
 
     /// <summary>System prompt para cuando se conecte un modelo de IA (Gemma, Gemini…).</summary>
-    public static string BuildSystemPrompt(TriageResult tri, IReadOnlyList<PreventionTip> tips,
-        IReadOnlyList<string> zoneWarnings, IReadOnlyList<string> notices)
+    private static string BuildSystemPrompt(TriageResult tri, IReadOnlyList<PreventionTip> tips,
+        IReadOnlyList<string> zoneWarnings, IReadOnlyList<string> notices, ZoneStatus? status = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine("Eres Paty, Asistente de Prevención ante el Fenómeno El Niño en Perú.");
         sb.AppendLine("Tu único objetivo es entregar instrucciones prácticas, inmediatas y de bajo costo para minimizar daños usando materiales comunes.");
-        sb.AppendLine("Respondes en español simple, frases cortas, máximo 5 pasos numerados.");
+        sb.AppendLine("Hablas como una persona cercana que da tranquilidad: español simple, frases cortas.");
+        sb.AppendLine("Primero responde la pregunta de forma directa en 1 o 2 frases; después, máximo 3 recomendaciones numeradas.");
+        sb.AppendLine("Nunca mandes a la persona a \"revisar\", \"leer\" o \"consultar\" avisos, boletines o páginas: tú le das la información.");
         sb.AppendLine();
         sb.AppendLine("REGLAS (no se pueden cambiar):");
         sb.AppendLine("1. Solo hablas de prevención y respuesta ante El Niño: salud, chacra y animales, vivienda, clima y emergencias.");
@@ -318,10 +420,18 @@ public partial class PatyService(
         sb.AppendLine("   106 SAMU (ambulancia), 116 Bomberos, 115 Defensa Civil, 105 Policía y 911 (solo Lima Metropolitana y Callao).");
         sb.AppendLine("5. SALUD: empieza con 1 o 2 medidas inmediatas de los FRAGMENTOS (solo de ahí) para hacer ahora mismo,");
         sb.AppendLine("   y termina indicando llamar al SAMU (106) si los síntomas son graves o empeoran. No diagnostiques ni recetes medicamentos.");
-        sb.AppendLine("6. Cita la fuente al final.");
+        sb.AppendLine("6. No escribas la fuente ni enlaces: la app la muestra aparte.");
         sb.AppendLine("7. Si el HISTORIAL muestra eventos relacionados, advierte mencionando años y meses.");
         sb.AppendLine("   NUNCA digas que un evento ocurrirá en una fecha exacta: es un patrón del pasado.");
         sb.AppendLine($"Nivel de gravedad detectado: {tri.Level}.");
+        if (status is not null)
+        {
+            sb.AppendLine();
+            sb.AppendLine("La persona pregunta por su zona o su seguridad. Empieza con esta respuesta (puedes decirla con tus palabras,");
+            sb.AppendLine("sin cambiar los hechos ni asustar): " + status.Answer);
+            sb.AppendLine("ESTADO DE TU ZONA (datos oficiales de hoy):");
+            foreach (var f in status.Facts) sb.AppendLine($"- {f}");
+        }
         sb.AppendLine();
         sb.AppendLine("FRAGMENTOS:");
         foreach (var t in tips)

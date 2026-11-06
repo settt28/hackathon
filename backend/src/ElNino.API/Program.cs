@@ -98,6 +98,7 @@ builder.Services.AddRateLimiter(o =>
     o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(c => PerIp(c, 300));
     o.AddPolicy(RateLimits.Ai, c => PerIp(c, 20));    // chat, voz, tts: cada consulta puede llamar a un modelo de pago
     o.AddPolicy(RateLimits.Sms, c => PerIp(c, 120));  // el gateway GSM reenvía los SMS de muchas personas desde una IP
+    o.AddPolicy(RateLimits.Tts, c => PerIp(c, 90));   // la voz se pide por frases: varias peticiones por respuesta
 });
 
 var app = builder.Build();
@@ -112,6 +113,23 @@ app.Logger.LogInformation("IA de chat: {Chat} · Dictado: {Stt} · Voz servidor:
     aiOptions.Chat.IsConfigured ? aiOptions.Chat.Model : "no configurada (respuestas por plantilla)",
     aiOptions.Stt.IsConfigured ? aiOptions.Stt.Model : "no",
     aiOptions.Tts.IsConfigured ? "Fish Audio" : "no (el navegador lee en voz alta)");
+
+// Avisos del SENAMHI precargados y renovados cada 15 min (la caché dura 20): nadie espera los ~4 s de la consulta
+_ = Task.Run(async () =>
+{
+    var senamhi = app.Services.GetRequiredService<ElNino.Core.Interfaces.ISenamhiClient>();
+    var stopping = app.Lifetime.ApplicationStopping;
+    using var timer = new PeriodicTimer(TimeSpan.FromMinutes(15));
+    try
+    {
+        do
+        {
+            try { await senamhi.GetWarningsAsync(stopping); }
+            catch (HttpRequestException) { } // sin internet: se reintenta en la próxima vuelta
+        } while (await timer.WaitForNextTickAsync(stopping));
+    }
+    catch (OperationCanceledException) { } // el servidor se está apagando
+});
 
 // --- Pipeline HTTP ---
 if (app.Environment.IsDevelopment())

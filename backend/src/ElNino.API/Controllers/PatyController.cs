@@ -59,7 +59,7 @@ public class PatyController(
     }
 
     /// <summary>Lee un texto en voz alta (MP3, Fish Audio). 503 si no está configurado: el navegador usa su propia voz.</summary>
-    [EnableRateLimiting(RateLimits.Ai)]
+    [EnableRateLimiting(RateLimits.Tts)]
     [HttpPost("tts")]
     public async Task<IActionResult> Tts([FromBody] TtsRequest req, CancellationToken ct)
     {

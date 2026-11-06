@@ -199,4 +199,5 @@ y en `appsettings.Local.json` usa:
 ## 8. Más información
 
 - [README](README.md): estructura del proyecto, configuración de IA, reentrenamiento del modelo y seguridad para desplegar.
+- [docs/ANDROID.md](docs/ANDROID.md): cómo empaquetar Paty en un APK (pantalla completa, permisos de ubicación y micrófono, backend).
 - `ml/train_risk_model.py`: entrenamiento del modelo de riesgo XGBoost con el historial del SINPAD.

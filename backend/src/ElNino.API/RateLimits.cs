@@ -5,4 +5,5 @@ public static class RateLimits
 {
     public const string Ai = "ia";
     public const string Sms = "sms";
+    public const string Tts = "tts";
 }

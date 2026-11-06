@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getAlertas, getUbicacion, type Alert, type AlertLevel, type Dominio, type UserLocation } from '../lib/api'
-import { getPosition } from '../lib/geo'
+import { getPosition, onLocationMaybeAvailable } from '../lib/geo'
 
 export type LoadStatus = 'loading' | 'ok' | 'error'
 
@@ -22,6 +22,7 @@ function getUserLocation(): Promise<UserLocation | null> {
 
 export function useUserLocation(): UserLocation | null {
   const [location, setLocation] = useState<UserLocation | null>(null)
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     let active = true
     void getUserLocation().then((l) => {
@@ -30,7 +31,12 @@ export function useUserLocation(): UserLocation | null {
     return () => {
       active = false
     }
-  }, [])
+  }, [attempt])
+  // Sin ubicación: reintenta cuando se conceda el permiso o la persona vuelva a la app
+  useEffect(() => {
+    if (location) return
+    return onLocationMaybeAvailable(() => setAttempt((a) => a + 1))
+  }, [location])
   return location
 }
 

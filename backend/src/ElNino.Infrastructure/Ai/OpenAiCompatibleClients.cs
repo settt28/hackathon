@@ -114,7 +114,8 @@ public sealed class FishAudioTextToSpeech(FishAudioOptions options, ILogger<Fish
     {
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{options.BaseUrl.TrimEnd('/')}/v1/tts")
         {
-            Content = OpenAiCompatibleChatModel.Json(new { text, reference_id = options.VoiceId, format = "mp3" }),
+            // "balanced": menos espera antes de empezar · 64 kbps: la mitad de datos, suficiente para voz
+            Content = OpenAiCompatibleChatModel.Json(new { text, reference_id = options.VoiceId, format = "mp3", mp3_bitrate = 64, latency = "balanced" }),
         };
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
 

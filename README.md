@@ -6,6 +6,7 @@ recomendaciones oficiales (MINSA, MIDAGRI, INDECI, ENFEN) y, en una emergencia, 
 línea de ayuda correcta.
 
 👉 **¿Quieres ejecutarlo? Sigue el [tutorial paso a paso](TUTORIAL.md)** (unos 10 minutos).
+📱 **¿Armas el APK?** Mira la [guía de Android](docs/ANDROID.md): pantalla completa, permisos de ubicación y micrófono, y conexión al backend.
 
 | Inicio | Llamada con Paty | Emergencia médica |
 |:---:|:---:|:---:|
