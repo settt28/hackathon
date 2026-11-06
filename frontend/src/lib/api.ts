@@ -64,7 +64,7 @@ export interface NearbyHealthCenter {
 export interface PatyReply {
   reply: string
   location: { district: string; province: string; department: string } | null
-  triage: { level: TriageLevel; phoneNumber?: string | null; phoneLabel?: string | null }
+  triage: { level: TriageLevel; emergencyType?: 'Medica' | 'Desastre' | null; phoneNumber?: string | null; phoneLabel?: string | null }
   tips: TipReference[]
   zoneWarnings: string[]
   officialNotices: string[]

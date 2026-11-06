@@ -3,12 +3,19 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import ChatHeader from '../components/paty/ChatHeader'
 import ChatInputBar from '../components/paty/ChatInputBar'
 import ChatMessageBubble from '../components/paty/ChatMessageBubble'
+import MedicalAlert from '../components/paty/MedicalAlert'
 import PatyHero from '../components/paty/PatyHero'
 import SuggestionList from '../components/paty/SuggestionList'
 import { SUGGESTIONS } from '../components/paty/suggestions'
 import { usePatyChat } from '../hooks/usePatyChat'
 import { getCapacidades } from '../lib/api'
 import { getGreeting } from '../lib/greeting'
+
+// Medida inmediata en emergencia médica (la misma que da el backend): solo acciones seguras, sin medicamentos
+const FIRST_MEASURE =
+  'No dejes sola a la persona, mantenla en un lugar seguro y ventilado, y no le des medicamentos, comida ni bebida si está somnolienta o inconsciente.'
+
+type HealthAlert = { id: string; number: string; measure: string; urgent: boolean }
 
 interface PatyChatViewProps {
   /** Nombre del usuario cuando exista autenticación; sin él, el saludo es genérico. */
@@ -29,6 +36,21 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
   const [draft, setDraft] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // Respuesta de salud (moderada o grave): alerta flotante con el SAMU hasta que la persona la cierre
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set())
+  const last = messages.at(-1)
+  const healthAlert: HealthAlert | null = (() => {
+    if (last?.role !== 'paty' || !last.data || dismissed.has(last.id)) return null
+    const { triage, tips } = last.data
+    if (triage.emergencyType !== 'Medica' || triage.level === 'Leve') return null
+    const urgent = triage.level === 'Grave'
+    return {
+      id: last.id,
+      number: triage.phoneNumber ?? '106',
+      measure: urgent ? FIRST_MEASURE : (tips[0]?.steps[0] ?? 'Vigila los síntomas y acude a tu centro de salud.'),
+      urgent,
+    }
+  })()
 
   // El micrófono solo aparece si el servidor tiene dictado (Whisper) configurado
   useEffect(() => {
@@ -90,6 +112,16 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
           )}
           <div ref={endRef} />
         </main>
+
+        {healthAlert && (
+          <MedicalAlert
+            key={healthAlert.id}
+            number={healthAlert.number}
+            measure={healthAlert.measure}
+            urgent={healthAlert.urgent}
+            onClose={() => setDismissed((d) => new Set(d).add(healthAlert.id))}
+          />
+        )}
 
         <ChatInputBar
           value={draft}

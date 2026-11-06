@@ -103,7 +103,10 @@ http://localhost:5173/?lat=-11.9369&lon=-76.6966
 - `hay un huaico` → emergencia: botones para llamar al 911 (en Lima y Callao), al 116 y al 115, y qué hacer mientras llega la ayuda
 - `¿cómo evito el dengue?` → pasos del MINSA con su fuente
 - `¿qué riesgo hay en mi zona?` → historial del INDECI y la probabilidad del modelo de riesgo para este mes
-- `mi hijo tiene fiebre y le sangra la nariz` → emergencia médica: llamar al SAMU (106)
+- `mi papá se desmayó y no respira` → alerta flotante "Direccionando al SAMU (106) en 5…" con qué hacer mientras tanto;
+  al terminar la cuenta (o con "Llamar ahora") se abre la app de llamadas del celular con el 106 marcado
+- `mi hijo tiene fiebre` → recomendación del MINSA y alerta con el botón para llamar al 106 (sin abrir el marcador sola)
+- `cuéntame un chiste` → Paty responde que solo ayuda con prevención ante El Niño (no se consulta a la IA)
 
 ### Probar la API directamente
 

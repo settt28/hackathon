@@ -21,6 +21,11 @@ export default {
           '0%': { transform: 'scale(0.8)', opacity: '0.7' },
           '80%, 100%': { transform: 'scale(1.8)', opacity: '0' },
         },
+        // Entrada de la alerta flotante de salud
+        'alert-in': {
+          '0%': { transform: 'translateY(16px) scale(0.98)', opacity: '0' },
+          '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+        },
       },
     },
   },
