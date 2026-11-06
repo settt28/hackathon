@@ -28,7 +28,7 @@ const DashboardView: FC = () => {
 
           <div className="mt-4 flex flex-col gap-4 px-4 sm:gap-3">
             <MapCard address="Av. Paseo de la Reforma 222" gpsLabel="GPS Óptimo" />
-            <HistoryButton />
+            <HistoryButton onClick={() => navigate('/historial')} />
             <AssistantCard onOpenChat={() => navigate('/paty')} onVoice={() => navigate('/paty')} />
           </div>
 
