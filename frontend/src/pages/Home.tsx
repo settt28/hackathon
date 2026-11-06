@@ -1,61 +1,100 @@
-import SummaryCard from '../components/SummaryCard'
+import type { ComponentType, ReactNode } from 'react'
+import SummaryCard, { type RiskLevel } from '../components/SummaryCard'
 import { AlertIcon, HeartIcon, LeafIcon } from '../components/Icons'
+import { useAlertas, useUserLocation } from '../hooks/useAlertas'
+import type { AlertLevel, Dominio } from '../lib/api'
+
+const RISK_BY_LEVEL: Record<AlertLevel, RiskLevel> = { Bajo: 'bajo', Medio: 'medio', Alto: 'alto', Critico: 'critico' }
+
+type DomainSummaryProps = {
+  dominio: Dominio
+  title: string
+  icon: ComponentType<{ className?: string }>
+  iconClassName: string
+  to: string
+  extraDetails?: ReactNode
+}
+
+/** Tarjeta de resumen de un dominio: el riesgo y el resumen salen de su alerta vigente más grave. */
+function DomainSummary({ dominio, extraDetails, ...card }: DomainSummaryProps) {
+  const { deMiZona, otras, location, status, reload } = useAlertas(dominio)
+  const top = deMiZona[0]
+
+  if (status !== 'ok') {
+    const failed = status === 'error'
+    return (
+      <SummaryCard
+        {...card}
+        risk="sinDatos"
+        summary={failed ? 'No pudimos cargar las alertas.' : 'Cargando alertas…'}
+        details={
+          failed ? (
+            <button type="button" onClick={reload} className="font-semibold text-sky-700 underline">
+              Reintentar
+            </button>
+          ) : (
+            'Cargando…'
+          )
+        }
+      />
+    )
+  }
+
+  const emptySummary = location
+    ? `Sin alertas vigentes en tu zona${otras.length ? ` (${otras.length} en otras regiones)` : ''}.`
+    : 'Sin alertas vigentes.'
+
+  return (
+    <SummaryCard
+      {...card}
+      risk={top ? RISK_BY_LEVEL[top.level] : 'sinAlertas'}
+      summary={top ? `${top.title} (${top.region})` : emptySummary}
+      details={
+        <>
+          {deMiZona.length > 0 ? (
+            <ul className="list-disc space-y-1 pl-5">
+              {deMiZona.map((alert) => (
+                <li key={alert.id}>{alert.description}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>Revisa el módulo para ver las recomendaciones de prevención.</p>
+          )}
+          {extraDetails}
+        </>
+      }
+    />
+  )
+}
 
 /**
  * Pantalla de Inicio con Divulgación Progresiva:
  * solo muestra tarjetas de resumen; el detalle se abre bajo demanda o en cada módulo.
- * Datos de ejemplo: reemplazar por llamadas a la API (/api/salud/alertas, etc.).
  */
 export default function Home() {
+  const location = useUserLocation()
+
   return (
     <div className="mx-auto max-w-5xl">
       <section className="mb-6">
         <h2 className="text-xl font-bold md:text-2xl">Resumen de hoy</h2>
-        <p className="mt-1 text-sm text-slate-500">Estado preventivo ante el Fenómeno El Niño en tu zona.</p>
+        <p className="mt-1 text-sm text-slate-500">
+          {location
+            ? `Estado preventivo ante el Fenómeno El Niño en ${location.district}, ${location.department}.`
+            : 'Alertas ante el Fenómeno El Niño en todo el país. Activa tu ubicación para ver tu zona.'}
+        </p>
       </section>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <SummaryCard
-          title="Salud"
-          icon={HeartIcon}
-          iconClassName="bg-rose-50 text-rose-600"
-          risk="medio"
-          summary="Aumento de casos de dengue en la región."
-          details={
-            <ul className="list-disc space-y-1 pl-5">
-              <li>Elimina recipientes con agua estancada.</li>
-              <li>Usa repelente y mosquiteros.</li>
-            </ul>
-          }
-          to="/salud"
-        />
-        <SummaryCard
-          title="Agro"
-          icon={LeafIcon}
-          iconClassName="bg-emerald-50 text-emerald-600"
-          risk="bajo"
-          summary="Lluvias moderadas previstas esta semana."
-          details={
-            <ul className="list-disc space-y-1 pl-5">
-              <li>Revisa canales de drenaje de parcelas.</li>
-              <li>Protege semillas y fertilizantes de la humedad.</li>
-            </ul>
-          }
-          to="/agro"
-        />
-        <SummaryCard
+        <DomainSummary dominio="salud" title="Salud" icon={HeartIcon} iconClassName="bg-rose-50 text-rose-600" to="/salud" />
+        <DomainSummary dominio="agricultura" title="Agro" icon={LeafIcon} iconClassName="bg-emerald-50 text-emerald-600" to="/agro" />
+        <DomainSummary
+          dominio="infraestructura"
           title="Emergencias"
           icon={AlertIcon}
           iconClassName="bg-amber-50 text-amber-600"
-          risk="alto"
-          summary="Riesgo de huaicos en quebradas cercanas."
-          details={
-            <ul className="list-disc space-y-1 pl-5">
-              <li>Identifica tu zona segura y ruta de evacuación.</li>
-              <li>Emergencias: 116 (Bomberos) · 115 (Defensa Civil) · 106 (SAMU).</li>
-            </ul>
-          }
           to="/infraestructura"
+          extraDetails={<p className="mt-2">Emergencias: 116 (Bomberos) · 115 (Defensa Civil) · 106 (SAMU).</p>}
         />
       </div>
     </div>

@@ -1,6 +1,6 @@
-import PagePlaceholder from '../components/PagePlaceholder'
+import DomainModule from '../components/DomainModule'
 
-/** Módulo Agro: clima, cultivos y recomendaciones para productores. */
+/** Módulo Agro: alertas y recomendaciones para productores. */
 export default function Agro() {
-  return <PagePlaceholder title="Agro" description="Pronósticos y recomendaciones para cultivos y ganado." />
+  return <DomainModule dominio="agricultura" title="Agro" description="Alertas y recomendaciones para cultivos y ganado." />
 }

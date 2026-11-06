@@ -1,6 +1,6 @@
-import PagePlaceholder from '../components/PagePlaceholder'
+import DomainModule from '../components/DomainModule'
 
 /** Módulo de Salud: alertas sanitarias (dengue, enfermedades respiratorias, etc.). */
 export default function Salud() {
-  return <PagePlaceholder title="Salud" description="Alertas sanitarias y recomendaciones de prevención." />
+  return <DomainModule dominio="salud" title="Salud" description="Alertas sanitarias y recomendaciones de prevención." />
 }
