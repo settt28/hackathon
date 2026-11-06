@@ -63,7 +63,7 @@ public class SinpadImporter(AppDbContext db)
         if (!File.Exists(zipPath))
             throw new FileNotFoundException($"No se encontró el zip del SINPAD: {zipPath}");
 
-        int read = 0, skippedType = 0, skippedOther = 0, minY = int.MaxValue, maxY = 0;
+        int read = 0, skippedType = 0, skippedOther = 0, suspectHouses = 0, minY = int.MaxValue, maxY = 0;
         var events = new List<HistoricalEvent>();
         var seen = new HashSet<string>();
         // Región natural (COSTA/SIERRA/SELVA) más frecuente por distrito, para completar la tabla de distritos
@@ -110,6 +110,14 @@ public class SinpadImporter(AppDbContext db)
                 var deaths = Int(c[ColDeaths]) + Int(c[ColMissing]);
                 var affected = Int(c[ColDamnified]) + Int(c[ColAffected]);
                 var destroyed = Int(c[ColHousesDestroyed]);
+                // Cada vivienda destruida deja damnificados (3 a 5 personas por casa). En el archivo oficial 2026-I, el 98 % de
+                // las viviendas destruidas está en filas con MÁS viviendas que damnificados; en 2019-2025 eso pasa en ≤5 filas
+                // al año. Es un error de la columna en origen: copiarlo multiplicaría los daños de 2026 por ~40. Se toma como "sin dato".
+                if (destroyed >= 10 && destroyed > Int(c[ColDamnified]))
+                {
+                    destroyed = 0;
+                    suspectHouses++;
+                }
                 var district = Pretty(c[ColDist]);
                 var sourceType = Pretty(c[ColHazard]);
 
@@ -138,7 +146,7 @@ public class SinpadImporter(AppDbContext db)
 
         await HistoricalEventWriter.ReplaceAsync(db, Prefix, events, ct);
         await UpdateNaturalRegionsAsync(regions, ct);
-        return new ImportResult("INDECI – SINPAD", read, events.Count, skippedType, skippedOther, events.Count == 0 ? 0 : minY, maxY);
+        return new ImportResult("INDECI – SINPAD", read, events.Count, skippedType, skippedOther, events.Count == 0 ? 0 : minY, maxY, suspectHouses);
     }
 
     private async Task UpdateNaturalRegionsAsync(Dictionary<string, Dictionary<string, int>> regions, CancellationToken ct)

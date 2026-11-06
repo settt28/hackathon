@@ -5,7 +5,8 @@ using Microsoft.EntityFrameworkCore;
 namespace ElNino.Infrastructure.Import;
 
 /// <summary>Resumen de una importación.</summary>
-public record ImportResult(string Source, int Read, int Imported, int SkippedType, int SkippedOther, int MinYear, int MaxYear);
+/// <param name="CorrectedHouses">Filas con "viviendas destruidas" dudosas (copiaban a "afectados") que se tomaron como sin dato.</param>
+public record ImportResult(string Source, int Read, int Imported, int SkippedType, int SkippedOther, int MinYear, int MaxYear, int CorrectedHouses = 0);
 
 /// <summary>Reemplaza en bloque los eventos de una fuente (identificada por el prefijo de ExternalId).</summary>
 internal static class HistoricalEventWriter

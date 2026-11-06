@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
+import NationalStats from '../components/NationalStats'
 import SummaryCard, { type RiskLevel } from '../components/SummaryCard'
 import { AlertIcon, HeartIcon, LeafIcon } from '../components/Icons'
 import { useAlertas, useUserLocation } from '../hooks/useAlertas'
@@ -48,7 +49,7 @@ function DomainSummary({ dominio, extraDetails, ...card }: DomainSummaryProps) {
     <SummaryCard
       {...card}
       risk={top ? RISK_BY_LEVEL[top.level] : 'sinAlertas'}
-      summary={top ? `${top.title} (${top.region})` : emptySummary}
+      summary={top ? `${top.title}${top.region ? ` (${top.region})` : ""}` : emptySummary}
       details={
         <>
           {deMiZona.length > 0 ? (
@@ -97,6 +98,8 @@ export default function Home() {
           extraDetails={<p className="mt-2">Emergencias: 911 (Central Única, Lima y Callao) · 116 (Bomberos) · 115 (Defensa Civil) · 106 (SAMU).</p>}
         />
       </div>
+
+      <NationalStats />
     </div>
   )
 }

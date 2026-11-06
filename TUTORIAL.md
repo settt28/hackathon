@@ -86,7 +86,8 @@ Abre http://localhost:5173. El frontend reenvía las llamadas `/api` al backend 
 | http://localhost:5173/ | Dashboard: riesgo de tu zona, mapa, acceso a Paty y botón SOS |
 | http://localhost:5173/paty | Chat con Paty |
 | http://localhost:5173/emergencia | Números de emergencia (se abre con el botón SOS) |
-| http://localhost:5173/resumen | Resumen de alertas por sector |
+| http://localhost:5173/resumen | Resumen de alertas por sector y cifras de los últimos 5 años en el Perú (INDECI) |
+| http://localhost:5173/historial | Historial de emergencias de tu distrito |
 | http://localhost:5173/salud, /agro, /infraestructura | Alertas y recomendaciones de cada sector |
 
 ### Sin GPS (laptop o demo)

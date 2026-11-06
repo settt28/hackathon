@@ -228,3 +228,26 @@ export const getZoneHistory = (lat: number, lon: number, signal?: AbortSignal) =
 
 export const getActiveAlerts = (ubigeo: string, signal?: AbortSignal) =>
   api<Alert[]>(`/api/alertas?ubigeo=${encodeURIComponent(ubigeo)}`, { signal })
+
+// ---- Estadísticas nacionales (EstadisticasController → GET /api/estadisticas) ----
+
+export interface DamageTotals {
+  eventos: number
+  fallecidos: number
+  afectados: number
+  viviendasDestruidas: number
+}
+
+export interface NationalStats {
+  desde: number
+  datosHasta: string | null
+  fuente: string
+  nota: string | null
+  total: DamageTotals
+  porAnio: { anio: number; resumen: DamageTotals }[]
+  porPeligro: { peligro: string; resumen: DamageTotals }[]
+  departamentos: { departamento: string; resumen: DamageTotals }[]
+}
+
+export const getEstadisticas = (anios = 5, signal?: AbortSignal) =>
+  api<NationalStats>(`/api/estadisticas?anios=${anios}`, { signal })
