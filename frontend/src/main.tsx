@@ -1,8 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-// Tipografía Inter empaquetada con la app (funciona sin conexión)
-import '@fontsource-variable/inter'
+// Tipografía Inter empaquetada con la app (funciona sin conexión): solo el set latino, ver index.css
 import './index.css'
 // Aplica el tema guardado (claro/oscuro) antes del primer render
 import './hooks/useTheme'

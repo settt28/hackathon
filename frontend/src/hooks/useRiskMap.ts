@@ -8,31 +8,62 @@ export type RiskMapState =
   | { kind: 'error'; message: string }
   | { kind: 'ok'; map: RiskMap }
 
-/** Pide el mapa de riesgo de la zona del usuario y lo refresca cada `actualizarCadaSegundos`. */
+/** Cada cuánto se refresca (lo indica el backend; mínimo 1 minuto). */
+const refreshMs = (map: RiskMap) => Math.max(60, map.actualizarCadaSegundos) * 1000
+
+// Último mapa recibido: al volver al inicio se muestra al instante en vez de esperar otra vez al servidor
+let last: { map: RiskMap; at: number } | null = null
+
+/**
+ * Pide el mapa de riesgo de la zona del usuario y lo refresca cada `actualizarCadaSegundos`.
+ * Con la app en segundo plano no refresca (ahorra datos y batería): lo hace al volver.
+ */
 export function useRiskMap() {
-  const [state, setState] = useState<RiskMapState>({ kind: 'loading' })
+  const [state, setState] = useState<RiskMapState>(() => (last ? { kind: 'ok', map: last.map } : { kind: 'loading' }))
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     const ctrl = new AbortController()
-    const refresh: { timer?: ReturnType<typeof setTimeout> } = {}
+    // due: tocaba refrescar mientras la app estaba oculta
+    const refresh: { timer?: ReturnType<typeof setTimeout>; due: boolean } = { due: false }
 
-    const load = async () => {
+    const schedule = (ms: number) => {
+      refresh.timer = setTimeout(() => {
+        if (document.hidden) refresh.due = true
+        else void load()
+      }, ms)
+    }
+    const onVisible = () => {
+      if (!document.hidden && refresh.due) {
+        refresh.due = false
+        void load()
+      }
+    }
+
+    async function load() {
       const pos = await getPosition()
       if (ctrl.signal.aborted) return
       if (!pos) return setState({ kind: 'no-gps' })
       try {
         const map = await getMapaRiesgo(pos.latitude, pos.longitude, ctrl.signal)
+        last = { map, at: Date.now() }
         setState({ kind: 'ok', map })
-        refresh.timer = setTimeout(load, Math.max(60, map.actualizarCadaSegundos) * 1000)
+        schedule(refreshMs(map))
       } catch (e) {
         if (!ctrl.signal.aborted) setState({ kind: 'error', message: (e as Error).message })
       }
     }
-    void load()
+
+    document.addEventListener('visibilitychange', onVisible)
+    // Con un mapa reciente (y sin "Reintentar") solo se programa el próximo refresco
+    const age = last ? Date.now() - last.at : Infinity
+    if (attempt === 0 && last && age < refreshMs(last.map)) schedule(refreshMs(last.map) - age)
+    else void load()
+
     return () => {
       ctrl.abort()
       clearTimeout(refresh.timer)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [attempt])
 

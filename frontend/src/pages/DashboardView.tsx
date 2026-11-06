@@ -38,32 +38,33 @@ const DashboardView: FC = () => {
   return (
     <DeviceFrame>
       {/* Fondo: leve resplandor cian superior + silueta del Perú detrás del contenido */}
-      <main className="relative flex-1 overflow-y-auto overflow-x-hidden bg-[radial-gradient(ellipse_at_50%_0%,rgba(34,211,238,0.08),transparent_55%)] pb-1 pt-4 xl:pt-1">
+      <main className="relative flex-1 overflow-y-auto overflow-x-hidden bg-[radial-gradient(ellipse_at_50%_0%,rgba(34,211,238,0.08),transparent_55%)] pb-1 pt-4 @3xl:pt-6 sm:group-data-[framed=true]/frame:pt-1">
         <PeruSilhouette />
 
-<div className="relative">
+        <div className="relative mx-auto w-full max-w-[110rem] @3xl:flex @3xl:min-h-full @3xl:flex-col">
           <Header />
 
-          {/* Tablet: el mapa a la derecha y el resto a la izquierda. La última fila absorbe el alto que sobra. */}
-          <div className="tablet:mx-auto tablet:mt-2 tablet:grid tablet:max-w-5xl tablet:grid-cols-2 tablet:grid-rows-[auto_auto_auto_1fr] tablet:gap-x-6 tablet:gap-y-4 tablet:px-6">
-            <div className="tablet:col-start-1">
+          {/*
+            Móvil: una columna (estado → mapa → historial → Paty → SOS).
+            Tablet/PC (@3xl): la grilla ocupa todo el alto disponible. A la derecha, el mapa lo llena;
+            a la izquierda, estado, accesos y SOS centrados verticalmente frente a él (filas 1fr arriba y abajo).
+          */}
+          <div className="@3xl:grid @3xl:flex-1 @3xl:grid-cols-2 @3xl:grid-rows-[1fr_auto_auto_auto_1fr] @3xl:gap-x-8 @3xl:px-8 @3xl:pb-6 @5xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] @5xl:gap-x-12 @5xl:px-10">
+            <div className="@3xl:col-start-1 @3xl:row-start-2">
               <StatusBadge {...status} />
             </div>
 
-            <div className="mt-4 flex flex-col gap-4 px-4 xl:gap-3 tablet:contents">
-              <div className="tablet:col-start-2 tablet:row-span-4 tablet:row-start-1">
-                <MapCard state={risk.state} retry={risk.retry} onExpand={() => setRiskOpen(true)} />
-              </div>
-              <div className="tablet:col-start-1">
-                <HistoryButton onClick={() => navigate('/historial')} />
-              </div>
-              <div className="tablet:col-start-1">
-                <AssistantCard onOpenChat={() => navigate('/paty')} onVoice={() => navigate('/paty', { state: { call: true } })} />
-              </div>
+            <div className="mt-4 px-4 @3xl:col-start-2 @3xl:row-span-5 @3xl:row-start-1 @3xl:flex @3xl:flex-col @3xl:justify-center @3xl:px-0">
+              <MapCard state={risk.state} retry={risk.retry} onExpand={() => setRiskOpen(true)} />
+            </div>
+
+            <div className="mt-4 flex flex-col gap-4 px-4 sm:mt-3 sm:gap-3 @3xl:col-start-1 @3xl:row-start-3 @3xl:mt-8 @3xl:gap-4 @3xl:px-0 @5xl:mt-10 @5xl:gap-5">
+              <HistoryButton onClick={() => navigate('/historial')} />
+              <AssistantCard onOpenChat={() => navigate('/paty')} onVoice={() => navigate('/paty', { state: { call: true } })} />
             </div>
 
             {/* Con poca altura el SOS queda fijo en pantalla: este espacio evita que tape lo último al desplazarse */}
-            <div className="tablet:col-start-1 short:h-28">
+            <div className="@3xl:col-start-1 @3xl:row-start-4 short:h-28">
               <SOSFooter onPress={() => navigate('/emergencia')} />
             </div>
           </div>

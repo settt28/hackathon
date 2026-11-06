@@ -29,31 +29,34 @@ export default function ChatInputBar({ value, onChange, onSubmit, onCall, disabl
         e.preventDefault()
         if (canSend) onSubmit(value)
       }}
-      className="flex items-center gap-2.5 border-t border-slate-200 bg-white px-2.5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-cyan-400/15 dark:bg-[#070d17]"
+      className="border-t border-slate-200 bg-white px-2.5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-cyan-400/15 dark:bg-[#070d17] @3xl:px-6 @3xl:py-4"
     >
-      <label htmlFor="paty-input" className="sr-only">
-        Mensaje a Paty
-      </label>
-      <input
-        id="paty-input"
-        ref={inputRef}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Mensaje a Paty..."
-        autoComplete="off"
-        maxLength={1000}
-        enterKeyHint="send"
-        className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900 transition-colors placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/20 dark:border-cyan-400/20 dark:bg-[#0b1a26] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-cyan-400/60 dark:focus:ring-cyan-400/20"
-      />
-      {showMic ? (
-        <button type="button" onClick={onCall} disabled={disabled} aria-label="Hablar con Paty por voz" className={clsx(actionButton, 'relative')}>
-          <Mic className="h-6 w-6" strokeWidth={2.25} />
-        </button>
-      ) : (
-        <button type="submit" disabled={!canSend} aria-label="Enviar mensaje" className={actionButton}>
-          <SendHorizontal className="h-6 w-6" strokeWidth={2.25} />
-        </button>
-      )}
+      {/* Alineado con la columna de la conversación en pantallas anchas */}
+      <div className="mx-auto flex max-w-3xl items-center gap-2.5">
+        <label htmlFor="paty-input" className="sr-only">
+          Mensaje a Paty
+        </label>
+        <input
+          id="paty-input"
+          ref={inputRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Mensaje a Paty..."
+          autoComplete="off"
+          maxLength={1000}
+          enterKeyHint="send"
+          className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900 transition-colors placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/20 dark:border-cyan-400/20 dark:bg-[#0b1a26] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-cyan-400/60 dark:focus:ring-cyan-400/20"
+        />
+        {showMic ? (
+          <button type="button" onClick={onCall} disabled={disabled} aria-label="Hablar con Paty por voz" className={clsx(actionButton, 'relative')}>
+            <Mic className="h-6 w-6" strokeWidth={2.25} />
+          </button>
+        ) : (
+          <button type="submit" disabled={!canSend} aria-label="Enviar mensaje" className={actionButton}>
+            <SendHorizontal className="h-6 w-6" strokeWidth={2.25} />
+          </button>
+        )}
+      </div>
     </form>
   )
 }

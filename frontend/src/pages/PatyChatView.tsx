@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import ChatHeader from '../components/paty/ChatHeader'
 import ChatInputBar from '../components/paty/ChatInputBar'
 import CallOverlay from '../components/paty/CallOverlay'
+import DeviceFrame from '../layouts/DeviceFrame'
 import ChatMessageBubble from '../components/paty/ChatMessageBubble'
 import MedicalAlert from '../components/paty/MedicalAlert'
 import PatyHero from '../components/paty/PatyHero'
@@ -87,9 +88,10 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
   const goBack = () => (location.key === 'default' ? navigate('/') : navigate(-1))
 
   return (
-    <div className="h-[100dvh] bg-slate-200 antialiased dark:bg-[#1f1f22]">
-      {/* En desktop se centra como una app móvil; en móvil ocupa todo el ancho. Fondos iguales al dashboard */}
-      <div className="relative mx-auto flex h-full max-w-md flex-col overflow-hidden tablet:max-w-3xl bg-[#f4f7fb] md:border-x md:border-slate-200 dark:bg-[#070d17] dark:md:border-cyan-400/15">
+    // Mismo contenedor que el resto de pantallas: pantalla completa en móvil, tablet y PC, o "vista teléfono".
+    // En pantallas anchas la conversación va en una columna centrada de lectura cómoda (max-w-3xl).
+    <DeviceFrame>
+      <div className="relative flex min-h-0 flex-1 flex-col antialiased">
         <ChatHeader onBack={goBack} />
 
         {/* Textura sutil de puntos (como el dashboard) */}
@@ -100,7 +102,7 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
                 className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_50%_0%,rgba(14,165,233,0.12),transparent_60%)] dark:bg-[radial-gradient(ellipse_at_50%_0%,rgba(34,211,238,0.1),transparent_60%)]"
                 aria-hidden
               />
-              <div className="relative pb-6">
+              <div className="relative mx-auto max-w-3xl pb-6 @3xl:pt-6">
                 <PatyHero greeting={getGreeting()} userName={userName} />
                 <SuggestionList
                   items={SUGGESTIONS}
@@ -112,7 +114,7 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
               </div>
             </>
           ) : (
-            <ol className="flex flex-col gap-3 px-3 py-4" aria-live="polite" aria-busy={sending}>
+            <ol className="mx-auto flex max-w-3xl flex-col gap-3 px-3 py-4 @3xl:px-6 @3xl:py-6" aria-live="polite" aria-busy={sending}>
               {messages.map((m) => (
                 <ChatMessageBubble key={m.id} message={m} />
               ))}
@@ -149,6 +151,6 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
           inputRef={inputRef}
         />
       </div>
-    </div>
+    </DeviceFrame>
   )
 }

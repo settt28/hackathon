@@ -36,13 +36,19 @@ export default function MedicalAlert({ number, measure, urgent, onClose }: Medic
     return () => clearTimeout(t)
   }, [urgent, left, opened, tel])
 
-  // Foco en "Llamar" para que funcione con teclado y lectores de pantalla; Escape cancela
+  // Siempre el onClose más reciente, sin volver a enfocar "Llamar" cada vez que el chat se redibuja
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
+
+  // Foco en "Llamar" (una vez, al abrir) para que funcione con teclado y lectores de pantalla; Escape cancela
   useEffect(() => {
     callRef.current?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCloseRef.current()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [])
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-3 backdrop-blur-[2px] sm:items-center" onClick={onClose}>
