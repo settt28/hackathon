@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.ResponseCompression;
 using ElNino.Infrastructure;
 using ElNino.Infrastructure.Ai;
 using ElNino.Infrastructure.Import;
+using Microsoft.AspNetCore.Diagnostics;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -78,7 +79,9 @@ builder.Services.AddResponseCompression(o =>
 });
 
 // Límite de peticiones por IP: protege la cuota de la IA (Groq/Fish Audio cobran por uso) y la base de datos.
-// ponytail: detrás de un proxy inverso todas las peticiones llegan con su IP; activar ForwardedHeaders al desplegar así.
+// La IP real se toma de CF-Connecting-IP / X-Forwarded-For solo si la conexión viene de un proxy de confianza
+// (esta misma máquina, donde corre cloudflared, o las IP de "Proxies:Trusted"). Ver ClientIp.
+var trustedProxies = ClientIp.ParseTrusted(builder.Configuration.GetSection("Proxies:Trusted").Get<string[]>());
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -88,9 +91,8 @@ builder.Services.AddRateLimiter(o =>
             ctx.HttpContext.Response.Headers.RetryAfter = ((int)retry.TotalSeconds).ToString();
         await ctx.HttpContext.Response.WriteAsync("Demasiadas consultas seguidas. Espera un momento e intenta de nuevo.", ct);
     };
-    static string Ip(HttpContext c) => c.Connection.RemoteIpAddress?.ToString() ?? "desconocida";
-    static RateLimitPartition<string> PerIp(HttpContext c, int perMinute) =>
-        RateLimitPartition.GetFixedWindowLimiter(Ip(c), _ => new FixedWindowRateLimiterOptions
+    RateLimitPartition<string> PerIp(HttpContext c, int perMinute) =>
+        RateLimitPartition.GetFixedWindowLimiter(ClientIp.Resolve(c, trustedProxies), _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = perMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
         });
@@ -99,6 +101,7 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy(RateLimits.Ai, c => PerIp(c, 20));    // chat, voz, tts: cada consulta puede llamar a un modelo de pago
     o.AddPolicy(RateLimits.Sms, c => PerIp(c, 120));  // el gateway GSM reenvía los SMS de muchas personas desde una IP
     o.AddPolicy(RateLimits.Tts, c => PerIp(c, 90));   // la voz se pide por frases: varias peticiones por respuesta
+    o.AddPolicy(RateLimits.Heavy, c => PerIp(c, 60)); // mapa de riesgo, paquete offline, clima: consultas caras
 });
 
 var app = builder.Build();
@@ -115,6 +118,7 @@ if (exportArg >= 0 && exportArg + 1 < args.Length)
 }
 
 app.Logger.LogInformation("{Status}", riskModelStatus);
+ApiKeys.WarnIfWeak(app.Configuration, app.Logger, "Operador:ApiKey", "Sms:ApiKey");
 try { ChannelText.SelfCheck(); }
 catch (InvalidOperationException ex) { app.Logger.LogError(ex, "El formato de SMS está roto: {Msg}", ex.Message); }
 app.Logger.LogInformation("IA de chat: {Chat} · Dictado: {Stt} · Voz servidor: {Tts}",
@@ -140,10 +144,45 @@ _ = Task.Run(async () =>
 });
 
 // --- Pipeline HTTP ---
+
+// Errores no controlados: respuesta genérica, nunca el detalle de la excepción (rutas del servidor, código, consultas).
+// El detalle queda en el log. Va primero para atrapar el error antes que la página de errores de desarrollo.
+app.UseExceptionHandler(errorApp => errorApp.Run(async ctx =>
+{
+    var error = ctx.Features.Get<IExceptionHandlerFeature>()?.Error;
+    // Petición mal formada o demasiado grande (cuerpo, formulario): es culpa del cliente, no un error del servidor
+    var status = error is BadHttpRequestException bad ? bad.StatusCode : StatusCodes.Status500InternalServerError;
+    ctx.Response.StatusCode = status;
+    await ctx.Response.WriteAsJsonAsync(new
+    {
+        title = status >= 500 ? "Ocurrió un error interno. Intenta de nuevo en un momento." : "La petición no es válida.",
+        status,
+    }, (System.Text.Json.JsonSerializerOptions?)null, "application/problem+json");
+}));
+
 if (app.Environment.IsDevelopment())
 {
+    // La documentación interactiva solo se sirve a quien está en esta máquina. Lo que entra por el túnel o un proxy
+    // (aunque también llegue desde localhost) trae CF-Connecting-IP / X-Forwarded-For y recibe 404.
+    app.Use(async (ctx, next) =>
+    {
+        var isDocs = ctx.Request.Path.StartsWithSegments("/scalar") || ctx.Request.Path.StartsWithSegments("/openapi");
+        var remote = ctx.Connection.RemoteIpAddress;
+        var direct = remote is not null && System.Net.IPAddress.IsLoopback(remote) &&
+                     !ctx.Request.Headers.ContainsKey("CF-Connecting-IP") && !ctx.Request.Headers.ContainsKey("X-Forwarded-For");
+        if (isDocs && !direct)
+        {
+            ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+        await next();
+    });
     app.MapOpenApi();              // /openapi/v1.json
     app.MapScalarApiReference();   // /scalar → probar los endpoints desde el navegador
+}
+else
+{
+    app.UseHsts(); // el navegador recuerda usar siempre HTTPS con este dominio
 }
 
 app.UseResponseCompression();

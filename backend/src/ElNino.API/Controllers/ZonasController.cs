@@ -20,7 +20,9 @@ public class ZonasController(ZoneHistoryService history, DistrictService distric
     /// </summary>
     [HttpGet("{ubigeo}/historial")]
     public async Task<IActionResult> GetHistorial(string ubigeo, [FromQuery] int limite = 30, CancellationToken ct = default) =>
-        Ok(await history.GetSummaryAsync(ubigeo, maxEvents: Math.Clamp(limite, 0, MaxEvents), ct: ct));
+        InputRules.IsUbigeo(ubigeo)
+            ? Ok(await history.GetSummaryAsync(ubigeo, maxEvents: Math.Clamp(limite, 0, MaxEvents), ct: ct))
+            : BadRequest("El ubigeo debe tener 6 dígitos.");
 
     // Tope de eventos por respuesta: el patrón siempre usa todo el historial, la lista es solo para mostrar
     private const int MaxEvents = 200;
@@ -33,8 +35,8 @@ public class ZonasController(ZoneHistoryService history, DistrictService distric
     public async Task<IActionResult> GetHistorialPorUbicacion([FromQuery] double lat, [FromQuery] double lon,
         [FromQuery] int limite = 30, CancellationToken ct = default)
     {
-        if (lat is < -90 or > 90 || lon is < -180 or > 180) return BadRequest("Coordenadas inválidas.");
-        var location = await districts.LocateAsync(lat, lon, ct);
+        if (!InputRules.IsValidCoordinate(lat, lon)) return BadRequest("Coordenadas inválidas.");
+        var location = InputRules.IsInPeru(lat, lon) ? await districts.LocateAsync(lat, lon, ct) : null;
         if (location is null) return NotFound("La ubicación no corresponde a ningún distrito del Perú registrado.");
         return Ok(new { ubicacion = location, historial = await history.GetSummaryAsync(location.Ubigeo, maxEvents: Math.Clamp(limite, 0, MaxEvents), ct: ct) });
     }
@@ -42,7 +44,9 @@ public class ZonasController(ZoneHistoryService history, DistrictService distric
     /// <summary>Zonas de riesgo y zonas seguras del distrito (GeoJSON para pintar en el mapa).</summary>
     [HttpGet("{ubigeo}/mapa")]
     public async Task<IActionResult> GetZonas(string ubigeo, [FromQuery] ZoneType? tipo, CancellationToken ct) =>
-        Ok(await zones.ListAsync(z => z.Ubigeo == ubigeo && (tipo == null || z.ZoneType == tipo), ct));
+        InputRules.IsUbigeo(ubigeo)
+            ? Ok(await zones.ListAsync(z => z.Ubigeo == ubigeo && (tipo == null || z.ZoneType == tipo), ct))
+            : BadRequest("El ubigeo debe tener 6 dígitos.");
 
     /// <summary>
     /// Radar geométrico: devuelve las zonas que contienen el punto.
@@ -51,7 +55,9 @@ public class ZonasController(ZoneHistoryService history, DistrictService distric
     [HttpGet("verificar")]
     public async Task<IActionResult> Verificar([FromQuery] double lat, [FromQuery] double lon, CancellationToken ct)
     {
-        var all = await zones.GetAllAsync(ct);
+        if (!InputRules.IsValidCoordinate(lat, lon)) return BadRequest("Coordenadas inválidas.");
+        // Fuera del Perú no hay zonas registradas: se responde sin recorrer todos los polígonos
+        var all = InputRules.IsInPeru(lat, lon) ? await zones.GetAllAsync(ct) : [];
         var dentro = all.Where(z => GeoUtils.IsPointInGeoJson(z.GeoJson, lat, lon)).ToList();
         var riesgo = dentro.Where(z => z.ZoneType == ZoneType.Riesgo).ToList();
 

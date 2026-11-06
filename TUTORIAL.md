@@ -123,8 +123,9 @@ y aparece la alerta para llamar al SAMU (106).
 # Predicción del modelo de riesgo para un distrito (ubigeo del INEI)
 curl "http://localhost:5261/api/mapa/prediccion?ubigeo=150118"
 
-# Canal SMS: lo que respondería Paty a un SMS (clave de demo, solo en desarrollo)
-curl -X POST "http://localhost:5261/api/sms/entrante?key=demo-sms-2026" -d "text=hay un huaico"
+# Canal SMS: lo que respondería Paty a un SMS. Usa la clave Sms:ApiKey de backend/src/ElNino.API/appsettings.Local.json
+# (créala a partir de appsettings.Local.example.json con una clave aleatoria de 24+ caracteres)
+curl -X POST "http://localhost:5261/api/sms/entrante" -H "X-Api-Key: TU_CLAVE_SMS" -d "text=hay un huaico"
 ```
 
 ## 6. Activar la IA de chat y la voz (opcional)

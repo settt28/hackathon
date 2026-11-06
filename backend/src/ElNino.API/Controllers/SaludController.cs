@@ -26,8 +26,11 @@ public class SaludController(
         [FromQuery] double lat, [FromQuery] double lon,
         [FromQuery] int cantidad = 5, [FromQuery] bool soloEmergencias = false, CancellationToken ct = default)
     {
-        if (lat is < -90 or > 90 || lon is < -180 or > 180)
+        if (!InputRules.IsValidCoordinate(lat, lon))
             return BadRequest("Coordenadas inválidas.");
+        // Fuera del Perú no hay postas: sin esto, cada consulta recorría el catálogo completo buscando la "más cercana"
+        if (!InputRules.IsInPeru(lat, lon))
+            return Ok(Array.Empty<object>());
 
         return Ok(await healthCenters.GetNearestAsync(lat, lon, cantidad, soloEmergencias, ct));
     }

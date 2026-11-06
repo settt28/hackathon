@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using ElNino.Core.Models;
 using ElNino.Core.Services;
@@ -34,14 +35,19 @@ public class SmsController(PatyService paty, IConfiguration config) : Controller
         }
         else
         {
-            var json = await Request.ReadFromJsonAsync<JsonObject>(ct);
-            text = new[] { "text", "mensaje", "message" }.Select(k => json?[k]?.GetValue<string>()).FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+            // JSON mal formado, o con el texto como número/objeto: 400, nunca un error 500
+            JsonObject? json;
+            try { json = await Request.ReadFromJsonAsync<JsonObject>(ct); }
+            catch (Exception ex) when (ex is JsonException or InvalidOperationException) { return BadRequest("El cuerpo debe ser JSON o un formulario."); }
+            text = new[] { "text", "mensaje", "message" }
+                .Select(k => json?[k] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null)
+                .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
         }
         if (string.IsNullOrWhiteSpace(text))
             return BadRequest("El SMS no trae texto.");
 
         // ponytail: sin ubicación por SMS; si se necesita la zona, reconocer el nombre del distrito en el texto.
-        var reply = await paty.ChatAsync(new PatyRequest(text.Length > 1000 ? text[..1000] : text), ct);
+        var reply = await paty.ChatAsync(new PatyRequest(text.Length > InputRules.MaxMessage ? text[..InputRules.MaxMessage] : text), ct);
         return Content(ChannelText.Sms(reply), "text/plain; charset=utf-8");
     }
 }
