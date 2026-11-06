@@ -18,10 +18,10 @@ public class UbicacionController(DistrictService districts) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get([FromQuery] double lat, [FromQuery] double lon, CancellationToken ct)
     {
-        if (lat is < -90 or > 90 || lon is < -180 or > 180)
+        if (!InputRules.IsValidCoordinate(lat, lon))
             return BadRequest("Coordenadas inválidas.");
 
-        var location = await districts.LocateAsync(lat, lon, ct);
+        var location = InputRules.IsInPeru(lat, lon) ? await districts.LocateAsync(lat, lon, ct) : null;
         return location is null
             ? NotFound("La ubicación no corresponde a ningún distrito del Perú registrado.")
             : Ok(location);
@@ -30,5 +30,6 @@ public class UbicacionController(DistrictService districts) : ControllerBase
     /// <summary>Datos y límite (GeoJSON) de un distrito por su ubigeo.</summary>
     [HttpGet("distritos/{ubigeo}")]
     public async Task<IActionResult> GetDistrito(string ubigeo, CancellationToken ct) =>
-        await districts.GetByUbigeoAsync(ubigeo, ct) is { } d ? Ok(d) : NotFound();
+        !InputRules.IsUbigeo(ubigeo) ? BadRequest("El ubigeo debe tener 6 dígitos.")
+        : await districts.GetByUbigeoAsync(ubigeo, ct) is { } d ? Ok(d) : NotFound();
 }

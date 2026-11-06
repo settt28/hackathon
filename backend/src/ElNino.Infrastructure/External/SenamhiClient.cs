@@ -199,7 +199,12 @@ public partial class SenamhiClient(IMemoryCache cache, ILogger<SenamhiClient> lo
 
     private static HttpClient CreateHttp()
     {
-        var http = new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
+        var http = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(25),
+            // Las páginas del SENAMHI pesan < 1 MB. Tope de 8 MB: una respuesta anómala no llena la memoria del servidor
+            MaxResponseContentBufferSize = 8 * 1024 * 1024,
+        };
         http.DefaultRequestHeaders.UserAgent.ParseAdd(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36");
         return http;

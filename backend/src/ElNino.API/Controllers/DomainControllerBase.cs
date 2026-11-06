@@ -24,6 +24,8 @@ public abstract class DomainControllerBase(
     public async Task<IActionResult> GetAlertas(
         [FromQuery] string? ubigeo, [FromQuery] bool incluirVencidas = false, CancellationToken ct = default)
     {
+        if (!InputRules.IsOptionalUbigeo(ubigeo)) return BadRequest("El ubigeo debe tener 6 dígitos.");
+        ubigeo = ubigeo?.Trim();
         if (!incluirVencidas) return Ok(await alerts.GetActiveAsync(ubigeo, domain, ct));
 
         var todas = await alerts.GetByDomainAsync(domain, ct);
@@ -38,6 +40,9 @@ public abstract class DomainControllerBase(
     public async Task<IActionResult> GetConsejos(
         [FromQuery] string? q, [FromQuery] HazardType? peligro, [FromQuery] EventPhase? fase, CancellationToken ct)
     {
+        // La búsqueda compara cada palabra con todos los consejos: un texto enorme la vuelve muy cara
+        if (q is { Length: > InputRules.MaxQuery })
+            return BadRequest($"La búsqueda es demasiado larga (máximo {InputRules.MaxQuery} caracteres).");
         IEnumerable<PreventionTip> result = string.IsNullOrWhiteSpace(q)
             ? await tips.ListAsync(t => t.Domain == domain, ct)
             : await tipSearch.SearchAsync(q, domain, 20, ct);

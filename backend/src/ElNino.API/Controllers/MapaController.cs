@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using ElNino.Core.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ElNino.API.Controllers;
 
@@ -10,6 +11,7 @@ namespace ElNino.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting(RateLimits.Heavy)] // cada mapa recorre decenas de distritos con su historial y el modelo de riesgo
 public class MapaController(MapService map, RiskMapService riskMap, RiskModelService riskModel) : ControllerBase
 {
     /// <summary>
@@ -25,8 +27,10 @@ public class MapaController(MapService map, RiskMapService riskMap, RiskModelSer
     public async Task<IActionResult> Get([FromQuery] double lat, [FromQuery] double lon,
         [FromQuery] double radioKm = 5, [FromQuery] bool clima = true, CancellationToken ct = default)
     {
-        if (lat is < -90 or > 90 || lon is < -180 or > 180 || (lat == 0 && lon == 0))
+        if (!InputRules.IsValidCoordinate(lat, lon) || (lat == 0 && lon == 0))
             return BadRequest("Envía lat y lon válidos.");
+        if (!InputRules.IsInPeru(lat, lon))
+            return NotFound("La ubicación no corresponde a ningún distrito del Perú registrado.");
 
         var geoJson = await map.BuildAsync(lat, lon, radioKm, clima, ct);
         if (geoJson["ubicacion"] is null)
@@ -45,10 +49,14 @@ public class MapaController(MapService map, RiskMapService riskMap, RiskModelSer
     public async Task<IActionResult> GetRiesgo([FromQuery] double lat, [FromQuery] double lon,
         [FromQuery] double radioKm = 25, [FromQuery] bool clima = true, CancellationToken ct = default)
     {
-        if (lat is < -90 or > 90 || lon is < -180 or > 180 || (lat == 0 && lon == 0))
+        if (!InputRules.IsValidCoordinate(lat, lon) || (lat == 0 && lon == 0))
             return BadRequest("Envía lat y lon válidos.");
+        if (!InputRules.IsInPeru(lat, lon))
+            return NotFound("La ubicación no corresponde a ningún distrito del Perú registrado.");
+        if (!double.IsFinite(radioKm)) return BadRequest("Radio inválido.");
 
-        var geoJson = await riskMap.BuildAsync(lat, lon, radioKm, clima, ct);
+        // Hasta 50 km (antes 100): el radio más grande es la consulta más cara del backend; la app usa 20 km
+        var geoJson = await riskMap.BuildAsync(lat, lon, Math.Clamp(radioKm, 1, 50), clima, ct);
         if (geoJson["tuDistrito"] is null && geoJson["features"] is JsonArray { Count: 0 })
             return NotFound("La ubicación no corresponde a ningún distrito del Perú registrado.");
         return Content(geoJson.ToJsonString(), "application/geo+json");
@@ -62,7 +70,7 @@ public class MapaController(MapService map, RiskMapService riskMap, RiskModelSer
     public async Task<IActionResult> GetPrediccion([FromQuery] string ubigeo, [FromQuery] int? anio, [FromQuery] int? mes, CancellationToken ct)
     {
         if (!riskModel.IsAvailable) return StatusCode(503, "El modelo de riesgo no está cargado.");
-        if (string.IsNullOrWhiteSpace(ubigeo) || ubigeo.Length != 6 || !ubigeo.All(char.IsDigit))
+        if (!InputRules.IsUbigeo(ubigeo))
             return BadRequest("El ubigeo debe tener 6 dígitos.");
         if (mes is < 1 or > 12 || anio is < 2010 or > 2100) return BadRequest("Año o mes inválido.");
 

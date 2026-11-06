@@ -17,6 +17,7 @@ public class BoletinesController(IRepository<Bulletin> bulletins, IConfiguration
     [HttpGet]
     public async Task<IActionResult> Get([FromQuery] string? institucion, [FromQuery] int limite = 10, CancellationToken ct = default)
     {
+        if (institucion is { Length: > 30 }) return BadRequest("Institución inválida.");
         var list = string.IsNullOrWhiteSpace(institucion)
             ? await bulletins.GetAllAsync(ct)
             : await bulletins.ListAsync(b => b.Institution == institucion.Trim().ToUpper(), ct);
@@ -38,6 +39,13 @@ public class BoletinesController(IRepository<Bulletin> bulletins, IConfiguration
     {
         if (!ApiKeys.Matches(config, "Operador:ApiKey", apiKey))
             return Unauthorized("Falta la cabecera X-Api-Key o es incorrecta.");
+
+        // Solo enlaces web: [Url] también acepta ftp://, y la app muestra este enlace a la persona
+        if (!string.IsNullOrWhiteSpace(req.Url) &&
+            !(Uri.TryCreate(req.Url.Trim(), UriKind.Absolute, out var link) && (link.Scheme == Uri.UriSchemeHttps || link.Scheme == Uri.UriSchemeHttp)))
+            return BadRequest("El enlace debe empezar con https:// o http://.");
+        if ((req.PuntosClave ?? []).Any(p => p.Length > 500) || (req.Regiones ?? []).Any(r => r.Length > 100))
+            return BadRequest("Cada punto clave admite hasta 500 caracteres y cada región hasta 100.");
 
         var institution = req.Institucion.Trim().ToUpper();
         var number = req.Numero.Trim();
@@ -69,8 +77,8 @@ public record CrearBoletinRequest(
     [Required, StringLength(200)] string Titulo,
     DateTime Fecha,
     [Required, StringLength(2000)] string Resumen,
-    string? EstadoAlerta = null,
-    List<string>? PuntosClave = null,
-    List<string>? Regiones = null,
-    [Url] string? Url = null,
+    [StringLength(100)] string? EstadoAlerta = null,
+    [MaxLength(20)] List<string>? PuntosClave = null,
+    [MaxLength(30)] List<string>? Regiones = null,
+    [Url, StringLength(500)] string? Url = null,
     DateTime? ProximoBoletin = null);

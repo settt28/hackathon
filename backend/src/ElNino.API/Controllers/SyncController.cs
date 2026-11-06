@@ -2,6 +2,7 @@ using ElNino.Core.Entities;
 using ElNino.Core.Interfaces;
 using ElNino.Core.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ElNino.API.Controllers;
 
@@ -12,6 +13,7 @@ namespace ElNino.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting(RateLimits.Heavy)] // el paquete offline es la respuesta más grande del backend
 public class SyncController(
     IRepository<PreventionTip> tips,
     IRepository<AlarmKeyword> keywords,
@@ -31,8 +33,12 @@ public class SyncController(
         [FromQuery] string? ubigeo, [FromQuery] double? lat, [FromQuery] double? lon,
         [FromQuery] double radioKm = 30, CancellationToken ct = default)
     {
-        if (lat is < -90 or > 90 || lon is < -180 or > 180) return BadRequest("Coordenadas inválidas.");
+        if (lat is double vLat && lon is double vLon ? !InputRules.IsValidCoordinate(vLat, vLon) : lat is not null || lon is not null)
+            return BadRequest("Coordenadas inválidas (envía lat y lon juntas).");
+        if (!InputRules.IsOptionalUbigeo(ubigeo)) return BadRequest("El ubigeo debe tener 6 dígitos.");
+        if (!double.IsFinite(radioKm)) return BadRequest("Radio inválido.");
         radioKm = Math.Clamp(radioKm, 1, 100); // sin tope, un radio enorme devolvía todas las postas del país
+        if (lat is double pLat && lon is double pLon && !InputRules.IsInPeru(pLat, pLon)) lat = lon = null; // fuera del Perú: sin datos de zona
 
         // Distrito: el ubigeo enviado manda; si no, se deduce del GPS
         DistrictLocation? ubicacion = null;

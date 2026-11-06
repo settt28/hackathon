@@ -1,6 +1,7 @@
 using ElNino.Core.Entities;
 using ElNino.Core.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ElNino.API.Controllers;
 
@@ -10,7 +11,8 @@ namespace ElNino.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class ClimaController(WeatherService weather, DistrictService districts) : ControllerBase
+[EnableRateLimiting(RateLimits.Heavy)]
+public class ClimaController(WeatherService weather, DistrictService districts, ILogger<ClimaController> logger) : ControllerBase
 {
     /// <summary>
     /// Pronóstico del tiempo para hoy (y los próximos días) donde está la persona.
@@ -20,6 +22,7 @@ public class ClimaController(WeatherService weather, DistrictService districts) 
     public async Task<IActionResult> GetPronostico([FromQuery] double? lat, [FromQuery] double? lon,
         [FromQuery] string? ubigeo, CancellationToken ct)
     {
+        if (!ValidInput(lat, lon, ubigeo)) return BadRequest("Coordenadas o ubigeo inválidos.");
         var district = await ResolveAsync(lat, lon, ubigeo, ct);
         if (district is null) return BadRequest("Envía lat y lon (o un ubigeo) de una ubicación en el Perú.");
 
@@ -30,9 +33,9 @@ public class ClimaController(WeatherService weather, DistrictService districts) 
                 ? NotFound($"El SENAMHI no tiene pronóstico publicado para {district.Department}.")
                 : Ok(forecast);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
         {
-            return Problem(title: "No se pudo consultar al SENAMHI", detail: ex.Message, statusCode: 502);
+            return SenamhiUnavailable(ex);
         }
     }
 
@@ -44,6 +47,7 @@ public class ClimaController(WeatherService weather, DistrictService districts) 
     public async Task<IActionResult> GetAvisos([FromQuery] double? lat, [FromQuery] double? lon, [FromQuery] string? ubigeo,
         [FromQuery] bool soloMiZona = false, [FromQuery] bool incluirFinalizados = false, CancellationToken ct = default)
     {
+        if (!ValidInput(lat, lon, ubigeo)) return BadRequest("Coordenadas o ubigeo inválidos.");
         var district = await ResolveAsync(lat, lon, ubigeo, ct);
         try
         {
@@ -57,16 +61,27 @@ public class ClimaController(WeatherService weather, DistrictService districts) 
                 avisos = list,
             });
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
         {
-            return Problem(title: "No se pudo consultar al SENAMHI", detail: ex.Message, statusCode: 502);
+            return SenamhiUnavailable(ex);
         }
     }
+
+    /// <summary>El detalle técnico (URL, motivo) va al log; al cliente solo un mensaje claro.</summary>
+    private ObjectResult SenamhiUnavailable(Exception ex)
+    {
+        logger.LogWarning(ex, "No se pudo consultar al SENAMHI");
+        return Problem(title: "No se pudo consultar al SENAMHI", detail: "Intenta de nuevo en unos minutos.", statusCode: 502);
+    }
+
+    private static bool ValidInput(double? lat, double? lon, string? ubigeo) =>
+        InputRules.IsOptionalUbigeo(ubigeo) &&
+        (lat is null && lon is null || lat is double la && lon is double lo && InputRules.IsValidCoordinate(la, lo));
 
     private async Task<District?> ResolveAsync(double? lat, double? lon, string? ubigeo, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(ubigeo)) return await districts.GetByUbigeoAsync(ubigeo.Trim(), ct);
-        if (lat is double la && lon is double lo && await districts.LocateAsync(la, lo, ct) is { } loc)
+        if (lat is double la && lon is double lo && InputRules.IsInPeru(la, lo) && await districts.LocateAsync(la, lo, ct) is { } loc)
             return await districts.GetByUbigeoAsync(loc.Ubigeo, ct);
         return null;
     }

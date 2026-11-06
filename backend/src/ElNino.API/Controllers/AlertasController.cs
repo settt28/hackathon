@@ -16,7 +16,9 @@ public class AlertasController(IAlertRepository alerts, IConfiguration config) :
     /// <summary>Alertas vigentes. Filtros opcionales: ?ubigeo=150118&amp;dominio=Salud</summary>
     [HttpGet]
     public async Task<IActionResult> GetVigentes([FromQuery] string? ubigeo, [FromQuery] AlertDomain? dominio, CancellationToken ct) =>
-        Ok(await alerts.GetActiveAsync(ubigeo, dominio, ct));
+        InputRules.IsOptionalUbigeo(ubigeo)
+            ? Ok(await alerts.GetActiveAsync(ubigeo?.Trim(), dominio, ct))
+            : BadRequest("El ubigeo debe tener 6 dígitos.");
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
@@ -59,6 +61,7 @@ public record CrearAlertaRequest(
     [Required, StringLength(150)] string Titulo,
     [Required, StringLength(1000)] string Descripcion,
     [Required, RegularExpression(@"^\d{6}$", ErrorMessage = "El ubigeo debe tener 6 dígitos.")] string Ubigeo,
-    string? Region = null,
-    string? Fuente = null,
-    int? HorasVigencia = 24);
+    [StringLength(100)] string? Region = null,
+    [StringLength(100)] string? Fuente = null,
+    // Hasta 30 días: un número enorme desbordaba la fecha de vencimiento (error 500)
+    [Range(1, 720)] int? HorasVigencia = 24);

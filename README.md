@@ -163,23 +163,32 @@ Documentación interactiva en http://localhost:5261/scalar (solo en desarrollo).
 | `POST /api/sms/entrante` | Canal SMS para un gateway GSM (requiere clave) |
 | `POST /api/alertas` · `POST /api/boletines` | Publicar alertas y boletines (operador, requiere clave) |
 
-Probar el canal SMS (clave de demo, solo en desarrollo):
+Probar el canal SMS (con la clave `Sms:ApiKey` de tu `appsettings.Local.json`, ver Seguridad):
 
 ```bash
-curl -X POST "http://localhost:5261/api/sms/entrante?key=demo-sms-2026" -d "text=hay un huaico"
+curl -X POST "http://localhost:5261/api/sms/entrante" -H "X-Api-Key: TU_CLAVE_SMS" -d "text=hay un huaico"
 # → EMERGENCIA: llama YA al 116 (Bomberos). 1) Mantén la calma, atiende la alarma y sigue las indicaciones…
 ```
 
 ## Seguridad (antes de desplegar)
 
 - **Claves de terceros** solo en `appsettings.Local.json` o en variables de entorno, nunca en `appsettings.json`.
-- **Claves de operador y SMS:** `Operador:ApiKey` y `Sms:ApiKey` tienen valores de demo solo en
-  `appsettings.Development.json`. En producción, usa variables de entorno (`Operador__ApiKey`, `Sms__ApiKey`). Sin
-  clave configurada, esos endpoints rechazan todo. La comparación es en tiempo constante.
+- **Claves de operador y SMS:** `Operador:ApiKey` y `Sms:ApiKey` van en `appsettings.Local.json` (git lo ignora) o
+  en variables de entorno (`Operador__ApiKey`, `Sms__ApiKey`), nunca en el repo. Deben tener 24 caracteres o más:
+  una clave corta, faltante o publicada (las antiguas de demo y las de la plantilla de ejemplo) deja esos endpoints
+  cerrados y se avisa al arrancar. Para generar una: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
+  La comparación es en tiempo constante. Prefiere la cabecera `X-Api-Key` a `?key=` (la URL queda en los logs).
 - **CORS:** pon el dominio real del frontend en `Cors:Origins`.
-- **Límite por IP:** 20 peticiones por minuto en chat, voz y lectura (usan IA de pago), 120 en SMS y 300 en el
-  resto. Detrás de un proxy inverso, activa `ForwardedHeaders`.
-- **Tamaño y cabeceras:** cuerpo máximo de 1 MB (10 MB para voz), cabeceras de seguridad y CSP en `/api`.
+- **Límite por IP:** 20 peticiones por minuto en chat, voz y lectura (usan IA de pago), 60 en mapa, clima y paquete
+  offline (consultas caras), 120 en SMS y 300 en el resto. La IP real se lee de `CF-Connecting-IP` / `X-Forwarded-For`
+  solo si la conexión viene de esta máquina (Cloudflare Tunnel) o de un proxy listado en `Proxies:Trusted`.
+- **Errores:** el cliente recibe un mensaje genérico; el detalle (stack trace, rutas) queda solo en el log.
+- **Documentación de la API** (`/scalar`, `/openapi`): solo en desarrollo y solo desde esta máquina; por un túnel o
+  proxy responde 404.
+- **Entradas validadas:** coordenadas (sin NaN y dentro del Perú), ubigeos de 6 dígitos y largo máximo de textos,
+  búsquedas, campos de alertas y boletines (enlaces solo `http(s)`). La voz solo acepta formatos de audio conocidos.
+- **Tamaño y cabeceras:** cuerpo máximo de 1 MB (10 MB para voz), cabeceras de seguridad, CSP en `/api` y HSTS en
+  producción.
 
 ## Modo sin conexión
 

@@ -1,4 +1,6 @@
 @host = http://localhost:5261
+# Clave de operador: la de Operador:ApiKey en appsettings.Local.json (nunca la subas al repo)
+@operadorKey = TU_CLAVE_DE_OPERADOR
 
 ### Alertas vigentes de Chosica
 GET {{host}}/api/alertas?ubigeo=150118
@@ -35,7 +37,7 @@ GET {{host}}/api/zonas/150118/historial?limite=10
 
 ### Descargar e importar el historial real (SINPAD + DesInventar)
 POST {{host}}/api/admin/importar/historial?descargar=true
-X-Api-Key: demo-operador-2026
+X-Api-Key: {{operadorKey}}
 
 ### Zonas de riesgo y seguras (GeoJSON)
 GET {{host}}/api/zonas/150118/mapa
@@ -61,7 +63,7 @@ GET {{host}}/api/sync?ubigeo=150118
 ### Publicar alerta (operador)
 POST {{host}}/api/alertas
 Content-Type: application/json
-X-Api-Key: demo-operador-2026
+X-Api-Key: {{operadorKey}}
 
 {
   "dominio": "Infraestructura",
