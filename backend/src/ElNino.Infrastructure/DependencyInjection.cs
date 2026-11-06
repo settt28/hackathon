@@ -1,3 +1,4 @@
+using ElNino.Core.Entities;
 using ElNino.Core.Interfaces;
 using ElNino.Infrastructure.Ai;
 using ElNino.Infrastructure.External;
@@ -19,10 +20,23 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString,
         DataImportOptions? importOptions = null, AiOptions? ai = null)
     {
-        services.AddDbContext<AppDbContext>(o => o.UseSqlite(connectionString));
+        // Pool: reutiliza instancias de DbContext en vez de construir una (y su modelo) en cada petición
+        services.AddDbContextPool<AppDbContext>(o => o.UseSqlite(connectionString));
+        services.AddMemoryCache();
 
         services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         services.AddScoped<IAlertRepository, EfAlertRepository>();
+
+        // Catálogos que no cambian mientras el servidor corre: se leen una vez y se sirven desde memoria.
+        // Es lo que más baja el tiempo de respuesta (ver CachedRepository). Las alertas NO se cachean:
+        // el operador las publica en caliente y deben verse al instante.
+        services.AddScoped<IRepository<District>, CachedRepository<District>>();
+        services.AddScoped<IRepository<HealthCenter>, CachedRepository<HealthCenter>>();
+        services.AddScoped<IRepository<HistoricalEvent>, CachedRepository<HistoricalEvent>>();
+        services.AddScoped<IRepository<PreventionTip>, CachedRepository<PreventionTip>>();
+        services.AddScoped<IRepository<AlarmKeyword>, CachedRepository<AlarmKeyword>>();
+        services.AddScoped<IRepository<RiskZone>, CachedRepository<RiskZone>>();
+        services.AddScoped<IRepository<Bulletin>, CachedRepository<Bulletin>>();
 
         // Importación de datos reales (distritos INEI, emergencias SINPAD del INDECI)
         services.AddSingleton(importOptions ?? new DataImportOptions());
@@ -31,7 +45,6 @@ public static class DependencyInjection
         services.AddScoped<DataImportService>();
 
         // SENAMHI: pronóstico y avisos meteorológicos (lectura de su web, con caché)
-        services.AddMemoryCache();
         services.AddSingleton<ISenamhiClient, SenamhiClient>();
 
         // IA y voz: cada pieza se activa sola si está configurada en "Ai"; si no, Paty sigue funcionando sin ella

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAlertas, zonaDeAlerta } from '../hooks/useAlertas'
+import SavedDataNote from './SavedDataNote'
 import { safeUrl } from '../lib/url'
 import { getConsejos, type Alert, type AlertLevel, type Dominio, type PreventionTip, type UserLocation } from '../lib/api'
 
@@ -81,14 +82,14 @@ function AlertCard({ alert, location, tips }: { alert: Alert; location: UserLoca
 
 /** Pantalla de un módulo: alertas vigentes de su dominio y recomendaciones oficiales. */
 export default function DomainModule({ title, description, dominio }: { title: string; description: string; dominio: Dominio }) {
-  const { deMiZona, otras, location, status, reload } = useAlertas(dominio)
+  const { deMiZona, otras, location, status, savedAt, reload } = useAlertas(dominio)
   const [tips, setTips] = useState<PreventionTip[]>([])
   const [tipsFailed, setTipsFailed] = useState(false)
 
   useEffect(() => {
     const ctrl = new AbortController()
     getConsejos(dominio, ctrl.signal)
-      .then(setTips)
+      .then(({ data }) => setTips(data))
       .catch(() => {
         if (!ctrl.signal.aborted) setTipsFailed(true)
       })
@@ -110,7 +111,7 @@ export default function DomainModule({ title, description, dominio }: { title: s
 
         {status === 'error' && (
           <div className="mt-3 rounded-2xl border border-red-200 dark:border-red-400/30 bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-800 dark:text-red-200">
-            <p>No pudimos cargar las alertas. Esto no significa que no haya riesgo.</p>
+            <p>No pudimos cargar las alertas y no hay una copia guardada en este teléfono. Esto no significa que no haya riesgo.</p>
             <button type="button" onClick={reload} className="mt-2 font-semibold underline">
               Reintentar
             </button>
@@ -119,6 +120,7 @@ export default function DomainModule({ title, description, dominio }: { title: s
 
         {status === 'ok' && (
           <>
+            <SavedDataNote savedAt={savedAt} className="mt-2" />
             {deMiZona.length === 0 && (
               <p className="mt-3 rounded-2xl border border-slate-200 dark:border-cyan-400/15 bg-white dark:bg-[#0b1a26] p-4 text-sm text-slate-500 dark:text-slate-400">
                 No hay alertas vigentes {location ? 'en tu zona' : 'por ahora'}.

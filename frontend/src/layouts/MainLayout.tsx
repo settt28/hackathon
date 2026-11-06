@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import NetworkMeter from '../components/NetworkMeter'
+import OfflineBanner from '../components/OfflineBanner'
 import PatyChatbot from '../components/PatyChatbot'
 import { NAV_ITEMS } from '../components/navItems'
 
@@ -34,6 +35,8 @@ export default function MainLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        <OfflineBanner />
+
         {/* Cabecera con título y medidor de red */}
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-cyan-400/15 bg-white/90 dark:bg-[#070d17]/90 px-4 py-3 backdrop-blur md:px-8">
           <h1 className="truncate text-base font-semibold md:text-lg">Sistema Preventivo El Niño</h1>

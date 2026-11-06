@@ -44,23 +44,44 @@ public class WeatherService(ISenamhiClient senamhi, IRepository<District> distri
     }
 
     /// <summary>Avisos vigentes y próximos, indicando cuáles podrían afectar la zona de la persona.</summary>
-    public async Task<IReadOnlyList<WarningForLocation>> GetWarningsAsync(District? district, bool includeFinished = false, CancellationToken ct = default)
+    public async Task<IReadOnlyList<WarningForLocation>> GetWarningsAsync(District? district, bool includeFinished = false, CancellationToken ct = default) =>
+        (await GetWarningIndexAsync(ct)).For(district, includeFinished);
+
+    /// <summary>Aviso con su texto ya normalizado: normalizarlo cuesta y no depende del distrito.</summary>
+    public sealed record IndexedWarning(WeatherWarning Warning, string Text);
+
+    /// <summary>
+    /// Avisos listos para comparar contra MUCHOS distritos.
+    /// El mapa de riesgo evalúa hasta 200 distritos de una vez; sin esto, el texto completo de cada
+    /// aviso (título + resumen + detalle por día) se normalizaba una vez por distrito, es decir miles
+    /// de veces por petición. Aquí se normaliza una sola vez y después solo se comparan cadenas.
+    /// </summary>
+    public sealed class WarningIndex(IReadOnlyList<IndexedWarning> warnings)
     {
-        var warnings = await senamhi.GetWarningsAsync(ct);
-        return warnings
-            .Where(w => includeFinished || w.Status is "vigente" or "emitido")
-            .Select(w => Evaluate(w, district))
-            .OrderByDescending(x => x.AffectsYourArea)
-            .ThenByDescending(x => LevelRank(x.Warning.Level))
-            .ThenBy(x => x.Warning.StartsAt)
-            .ToList();
+        public IReadOnlyList<WarningForLocation> For(District? district, bool includeFinished = false) =>
+            warnings
+                .Where(w => includeFinished || w.Warning.Status is "vigente" or "emitido")
+                .Select(w => Evaluate(w, district))
+                .OrderByDescending(x => x.AffectsYourArea)
+                .ThenByDescending(x => LevelRank(x.Warning.Level))
+                .ThenBy(x => x.Warning.StartsAt)
+                .ToList();
     }
 
-    private static WarningForLocation Evaluate(WeatherWarning w, District? d)
+    public async Task<WarningIndex> GetWarningIndexAsync(CancellationToken ct = default)
     {
+        var warnings = await senamhi.GetWarningsAsync(ct);
+        return new WarningIndex(warnings
+            .Select(w => new IndexedWarning(w, TextNormalizer.Normalize($"{w.Title} {w.Summary} {string.Join(' ', w.Details)}")))
+            .ToList());
+    }
+
+    private static WarningForLocation Evaluate(IndexedWarning iw, District? d)
+    {
+        var w = iw.Warning;
         if (d is null) return new WarningForLocation(w, false, "sin ubicación", "No se envió la ubicación.");
 
-        var text = TextNormalizer.Normalize($"{w.Title} {w.Summary} {string.Join(' ', w.Details)}");
+        var text = iw.Text;
         var dep = TextNormalizer.Normalize(d.Department);
         var prov = TextNormalizer.Normalize(d.Province);
 

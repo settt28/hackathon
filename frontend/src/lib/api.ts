@@ -3,6 +3,9 @@
  * En desarrollo, Vite redirige /api al backend (ver vite.config.ts), así no hay URLs fijas ni CORS.
  * En producción se define VITE_API_URL (ej. https://api.midominio.pe) si el backend vive en otro origen.
  */
+import { reportServerReachable } from './connection'
+import { readCache, writeCache } from './responseCache'
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
 export class ApiError extends Error {
@@ -26,15 +29,56 @@ export async function api<T>(path: string, init: RequestInit & { timeoutMs?: num
     })
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e
+    // La red falló de verdad: el resto de la app debe enterarse para mostrar "No conectado"
+    reportServerReachable(false)
     if ((e as Error).name === 'TimeoutError') throw new ApiError('La conexión está muy lenta. Intenta de nuevo.')
     throw new ApiError('Sin conexión con el servidor.')
   }
+  // Respondió: aunque sea un error de la API, el servidor está alcanzable
+  reportServerReachable(true)
   if (!res.ok) {
     // El backend devuelve el motivo como texto plano en los 400
     const text = await res.text().catch(() => '')
     throw new ApiError(text.length < 200 && text ? text : `Error del servidor (${res.status}).`, res.status)
   }
   return res.json() as Promise<T>
+}
+
+// ---- Lecturas con respaldo offline ----
+
+/**
+ * Resultado de una lectura. `savedAt` es null cuando los datos acaban de llegar del servidor;
+ * si trae una fecha, son la última copia guardada en el dispositivo (no hubo conexión).
+ */
+export interface Fresh<T> {
+  data: T
+  savedAt: number | null
+}
+
+/**
+ * GET con respaldo offline: guarda cada respuesta buena y, si la red falla, devuelve la última copia.
+ * Solo lanza error cuando no hay conexión Y tampoco hay nada guardado.
+ *
+ * `cacheKey` identifica *qué* se está leyendo, sin las coordenadas: dos lecturas del mapa desde
+ * puntos GPS casi iguales son la misma cosa y deben reutilizar la copia guardada.
+ */
+async function apiGet<T>(path: string, cacheKey: string, signal?: AbortSignal, timeoutMs?: number): Promise<Fresh<T>> {
+  // Sin conexión declarada: no se espera a que la red falle, se responde con lo guardado
+  if (!navigator.onLine) {
+    const saved = await readCache<T>(cacheKey)
+    if (saved) return { data: saved.data, savedAt: saved.savedAt }
+  }
+  try {
+    const data = await api<T>(path, { signal, timeoutMs })
+    void writeCache(cacheKey, data)
+    return { data, savedAt: null }
+  } catch (e) {
+    // Una cancelación del propio componente no es un fallo de red: no se enmascara con datos viejos
+    if ((e as Error).name === 'AbortError') throw e
+    const saved = await readCache<T>(cacheKey)
+    if (saved) return { data: saved.data, savedAt: saved.savedAt }
+    throw e
+  }
 }
 
 // ---- Tipos del contrato con el backend (ElNino.Core/Models/ServiceModels.cs) ----
@@ -122,13 +166,13 @@ export interface UserLocation {
 }
 
 export const getAlertas = (dominio: Dominio, signal?: AbortSignal) =>
-  api<Alert[]>(`/api/${dominio}/alertas`, { signal })
+  apiGet<Alert[]>(`/api/${dominio}/alertas`, `alertas:${dominio}`, signal)
 
 export const getConsejos = (dominio: Dominio, signal?: AbortSignal) =>
-  api<PreventionTip[]>(`/api/${dominio}/consejos`, { signal })
+  apiGet<PreventionTip[]>(`/api/${dominio}/consejos`, `consejos:${dominio}`, signal)
 
 export const getUbicacion = (lat: number, lon: number) =>
-  api<UserLocation>(`/api/ubicacion?lat=${lat}&lon=${lon}`)
+  apiGet<UserLocation>(`/api/ubicacion?lat=${lat}&lon=${lon}`, 'ubicacion')
 
 // ---- Mapa de riesgo (ElNino.API/Controllers/MapaController.cs → GET /api/mapa/riesgo) ----
 
@@ -161,7 +205,7 @@ export interface RiskMap {
 }
 
 export const getMapaRiesgo = (lat: number, lon: number, signal?: AbortSignal) =>
-  api<RiskMap>(`/api/mapa/riesgo?lat=${lat}&lon=${lon}&radioKm=15`, { signal, timeoutMs: 30000 })
+  apiGet<RiskMap>(`/api/mapa/riesgo?lat=${lat}&lon=${lon}&radioKm=15`, 'mapa-riesgo', signal, 30000)
 
 // ---- Voz e IA (PatyController: /capacidades, /voz, /tts) ----
 
@@ -226,10 +270,10 @@ export interface ZoneHistory {
 }
 
 export const getZoneHistory = (lat: number, lon: number, signal?: AbortSignal) =>
-  api<ZoneHistory>(`/api/zonas/historial?lat=${lat}&lon=${lon}&limite=60`, { signal })
+  apiGet<ZoneHistory>(`/api/zonas/historial?lat=${lat}&lon=${lon}&limite=60`, 'zona-historial', signal)
 
 export const getActiveAlerts = (ubigeo: string, signal?: AbortSignal) =>
-  api<Alert[]>(`/api/alertas?ubigeo=${encodeURIComponent(ubigeo)}`, { signal })
+  apiGet<Alert[]>(`/api/alertas?ubigeo=${encodeURIComponent(ubigeo)}`, `alertas-zona:${ubigeo}`, signal)
 
 // ---- Estadísticas nacionales (EstadisticasController → GET /api/estadisticas) ----
 
@@ -252,4 +296,4 @@ export interface NationalStats {
 }
 
 export const getEstadisticas = (anios = 5, signal?: AbortSignal) =>
-  api<NationalStats>(`/api/estadisticas?anios=${anios}`, { signal })
+  apiGet<NationalStats>(`/api/estadisticas?anios=${anios}`, `estadisticas:${anios}`, signal)

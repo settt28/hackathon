@@ -11,16 +11,16 @@ public class EfRepository<T>(AppDbContext db) : IRepository<T> where T : BaseEnt
 {
     protected readonly AppDbContext Db = db;
 
-    public async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken ct = default) =>
+    public virtual async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken ct = default) =>
         await Db.Set<T>().AsNoTracking().ToListAsync(ct);
 
-    public Task<T?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+    public virtual Task<T?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         Db.Set<T>().AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
 
-    public async Task<IReadOnlyList<T>> ListAsync(Expression<Func<T, bool>> predicate, CancellationToken ct = default) =>
+    public virtual async Task<IReadOnlyList<T>> ListAsync(Expression<Func<T, bool>> predicate, CancellationToken ct = default) =>
         await Db.Set<T>().AsNoTracking().Where(predicate).ToListAsync(ct);
 
-    public async Task<T> AddAsync(T entity, CancellationToken ct = default)
+    public virtual async Task<T> AddAsync(T entity, CancellationToken ct = default)
     {
         Db.Set<T>().Add(entity);
         await Db.SaveChangesAsync(ct);

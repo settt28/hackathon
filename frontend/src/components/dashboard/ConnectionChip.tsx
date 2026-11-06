@@ -1,22 +1,14 @@
-import { useSyncExternalStore, type FC } from 'react'
+import type { FC } from 'react'
 import clsx from 'clsx'
-
-/** Escucha los eventos online/offline del navegador. */
-function subscribe(onChange: () => void) {
-  window.addEventListener('online', onChange)
-  window.addEventListener('offline', onChange)
-  return () => {
-    window.removeEventListener('online', onChange)
-    window.removeEventListener('offline', onChange)
-  }
-}
+import { useOnline } from '../../hooks/useOnline'
 
 /**
  * NUEVO: chip de estado de conexión (esquina superior izquierda del Header).
- * Refleja la conexión real del dispositivo: "Online" en verde o "Sin conexión" en gris.
+ * Refleja si la app puede hablar con el servidor: "Online" en verde o "Sin conexión" en gris
+ * (ver lib/connection.ts: también cuenta como sin conexión un servidor que no responde).
  */
 const ConnectionChip: FC = () => {
-  const online = useSyncExternalStore(subscribe, () => navigator.onLine)
+  const online = useOnline()
 
   return (
     <span

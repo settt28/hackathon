@@ -78,7 +78,16 @@ public class RiskMapService(
         // 4) Estado de El Niño (solo como contexto)
         var enfen = (await bulletins.ListAsync(b => b.Institution == "ENFEN", ct)).OrderByDescending(b => b.PublishedAt).FirstOrDefault();
 
+        // 5) Avisos del SENAMHI: se piden y se normalizan UNA vez, no una por distrito.
+        //    Si el SENAMHI no responde, el mapa sigue saliendo solo con historial y alertas.
         var weatherAvailable = includeWeather;
+        WeatherService.WarningIndex? warningIndex = null;
+        if (includeWeather)
+        {
+            try { warningIndex = await weather.GetWarningIndexAsync(ct); }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { weatherAvailable = false; }
+        }
+
         var features = new JsonArray();
         foreach (var d in near)
         {
@@ -119,38 +128,31 @@ public class RiskMapService(
 
             // --- Avisos de lluvia del SENAMHI que afectan al distrito
             JsonObject? warningJson = null;
-            if (weatherAvailable)
+            if (warningIndex is not null)
             {
-                try
+                var rain = warningIndex.For(d)
+                    .Where(w => w.AffectsYourArea && IsRainWarning(w.Warning.Title))
+                    .Where(w => w.Warning.Status == "vigente" || w.Warning.StartsAt.DayNumber - DateOnly.FromDateTime(now).DayNumber <= 2)
+                    .OrderByDescending(w => LevelPoints(w.Warning.Level))
+                    .FirstOrDefault();
+                if (rain is not null)
                 {
-                    var rain = (await weather.GetWarningsAsync(d, false, ct))
-                        .Where(w => w.AffectsYourArea && IsRainWarning(w.Warning.Title))
-                        .Where(w => w.Warning.Status == "vigente" || w.Warning.StartsAt.DayNumber - DateOnly.FromDateTime(now).DayNumber <= 2)
-                        .OrderByDescending(w => LevelPoints(w.Warning.Level))
-                        .FirstOrDefault();
-                    if (rain is not null)
+                    var pts = LevelPoints(rain.Warning.Level);
+                    // Si el aviso nombra el departamento pesa completo (naranja +1, rojo +2);
+                    // si solo nombra la región ("costa y sierra"), pesa la mitad (rojo +1).
+                    level += rain.Relevance == "alta"
+                        ? pts switch { 3 => 2, 2 => 1, _ => 0 }
+                        : pts switch { 3 => 1, _ => 0 };
+                    if (level == 0 && pts >= 2) level = 1; // lluvias fuertes aunque no haya historial
+                    reasons.Add($"Aviso {rain.Warning.Level.ToLowerInvariant()} del SENAMHI N.° {rain.Warning.Number}: {rain.Warning.Title.ToLowerInvariant()} ({rain.Relevance}: {rain.Reason})");
+                    warningJson = new JsonObject
                     {
-                        var pts = LevelPoints(rain.Warning.Level);
-                        // Si el aviso nombra el departamento pesa completo (naranja +1, rojo +2);
-                        // si solo nombra la región ("costa y sierra"), pesa la mitad (rojo +1).
-                        level += rain.Relevance == "alta"
-                            ? pts switch { 3 => 2, 2 => 1, _ => 0 }
-                            : pts switch { 3 => 1, _ => 0 };
-                        if (level == 0 && pts >= 2) level = 1; // lluvias fuertes aunque no haya historial
-                        reasons.Add($"Aviso {rain.Warning.Level.ToLowerInvariant()} del SENAMHI N.° {rain.Warning.Number}: {rain.Warning.Title.ToLowerInvariant()} ({rain.Relevance}: {rain.Reason})");
-                        warningJson = new JsonObject
-                        {
-                            ["numero"] = rain.Warning.Number,
-                            ["nivel"] = rain.Warning.Level,
-                            ["titulo"] = rain.Warning.Title,
-                            ["estado"] = rain.Warning.Status,
-                            ["fin"] = rain.Warning.EndsAt.ToString("yyyy-MM-dd"),
-                        };
-                    }
-                }
-                catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-                {
-                    weatherAvailable = false; // sin conexión con el SENAMHI: se sigue solo con historial y alertas
+                        ["numero"] = rain.Warning.Number,
+                        ["nivel"] = rain.Warning.Level,
+                        ["titulo"] = rain.Warning.Title,
+                        ["estado"] = rain.Warning.Status,
+                        ["fin"] = rain.Warning.EndsAt.ToString("yyyy-MM-dd"),
+                    };
                 }
             }
 

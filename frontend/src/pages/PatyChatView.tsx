@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ChatHeader from '../components/paty/ChatHeader'
+import OfflineBanner from '../components/OfflineBanner'
 import ChatInputBar from '../components/paty/ChatInputBar'
 import CallOverlay from '../components/paty/CallOverlay'
 import ChatMessageBubble from '../components/paty/ChatMessageBubble'
@@ -90,6 +91,7 @@ export default function PatyChatView({ userName }: PatyChatViewProps) {
     <div className="h-[100dvh] bg-slate-200 antialiased dark:bg-[#1f1f22]">
       {/* En desktop se centra como una app móvil; en móvil ocupa todo el ancho. Fondos iguales al dashboard */}
       <div className="relative mx-auto flex h-full max-w-md flex-col overflow-hidden bg-[#f4f7fb] md:border-x md:border-slate-200 dark:bg-[#070d17] dark:md:border-cyan-400/15">
+        <OfflineBanner />
         <ChatHeader onBack={goBack} />
 
         {/* Textura sutil de puntos (como el dashboard) */}

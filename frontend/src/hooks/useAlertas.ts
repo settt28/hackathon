@@ -8,10 +8,13 @@ const LEVEL_ORDER: Record<AlertLevel, number> = { Critico: 0, Alto: 1, Medio: 2,
 
 let cachedLocation: Promise<UserLocation | null> | null = null
 
-/** Distrito del usuario. Se resuelve una vez y se comparte entre componentes; si falla, se reintenta al volver a montar. */
+/**
+ * Distrito del usuario. Se resuelve una vez y se comparte entre componentes; si falla, se reintenta al volver a montar.
+ * Sin conexión funciona igual: el GPS es satelital y la traducción a distrito sale de la última guardada.
+ */
 function getUserLocation(): Promise<UserLocation | null> {
   cachedLocation ??= getPosition()
-    .then((pos) => (pos ? getUbicacion(pos.latitude, pos.longitude) : null))
+    .then((pos) => (pos ? getUbicacion(pos.latitude, pos.longitude).then((r) => r.data) : null))
     .catch(() => null)
     .then((location) => {
       if (!location) cachedLocation = null
@@ -58,17 +61,21 @@ export function zonaDeAlerta(alert: Alert, location: UserLocation | null): 'dist
 export function useAlertas(dominio: Dominio) {
   const [alertas, setAlertas] = useState<Alert[]>([])
   const [status, setStatus] = useState<LoadStatus>('loading')
+  // Fecha de la copia guardada cuando los datos no vienen del servidor (null = están al día)
+  const [savedAt, setSavedAt] = useState<number | null>(null)
   const [attempt, setAttempt] = useState(0)
   const location = useUserLocation()
 
   useEffect(() => {
     const ctrl = new AbortController()
     getAlertas(dominio, ctrl.signal)
-      .then((data) => {
+      .then(({ data, savedAt }) => {
         setAlertas([...data].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]))
+        setSavedAt(savedAt)
         setStatus('ok')
       })
       .catch(() => {
+        // Solo es 'error' si tampoco había nada guardado: no hay forma honesta de mostrar alertas
         if (!ctrl.signal.aborted) setStatus('error')
       })
     return () => ctrl.abort()
@@ -87,5 +94,5 @@ export function useAlertas(dominio: Dominio) {
     }
   }, [alertas, location])
 
-  return { deMiZona, otras, location, status, reload }
+  return { deMiZona, otras, location, status, savedAt, reload }
 }

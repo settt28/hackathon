@@ -181,11 +181,28 @@ curl -X POST "http://localhost:5261/api/sms/entrante?key=demo-sms-2026" -d "text
   resto. Detrás de un proxy inverso, activa `ForwardedHeaders`.
 - **Tamaño y cabeceras:** cuerpo máximo de 1 MB (10 MB para voz), cabeceras de seguridad y CSP en `/api`.
 
+## Modo sin conexión
+
+Las emergencias por El Niño cortan la señal justo cuando más hace falta la app. Paty está pensada para
+seguir sirviendo en ese momento:
+
+| Pieza | Cómo funciona sin internet |
+|---|---|
+| **La app abre** | Service worker (`frontend/public/sw.js`). El build inyecta la lista real de archivos (plugin `paty-offline-precache` en `vite.config.ts`), incluidos los trozos de rutas que se cargan en diferido, así que cualquier pantalla abre sin red. |
+| **Los datos** | El frontend descarga `/api/sync` (paquete de la zona: consejos, palabras de alarma, postas, alertas, historial, boletines) y lo guarda en IndexedDB (`src/lib/sync.ts`). Además, cada lectura buena de la API queda guardada con su fecha (`src/lib/responseCache.ts`) y se muestra si la red falla. |
+| **El GPS** | El chip GPS es satelital y no necesita datos: sin conexión se pide con `enableHighAccuracy` y más tiempo de espera, porque la ubicación por antenas sí requiere red. La última posición buena queda guardada en el dispositivo (`src/lib/geo.ts`). |
+| **La IA** | `src/lib/localPaty.ts` es el mismo cerebro por reglas del backend (triaje por palabras de alarma, búsqueda de consejos, posta más cercana) corriendo en el teléfono sobre el paquete descargado. Responde con indicaciones oficiales, nunca inventadas. |
+| **El aviso** | Franja **"No conectado"** arriba de la app (`src/components/OfflineBanner.tsx`). Aparece también si el servidor no responde, no solo si el teléfono perdió la señal. Cada pantalla indica de cuándo son los datos que está mostrando. |
+
+Lo único que necesita conexión es transcribir un audio (Whisper vive en el servidor); el texto sí lo
+atiende la IA local, y Paty responde en voz alta con la voz del navegador.
+
 ## Estado frente a la propuesta
 
 | Propuesta | Estado |
 |---|---|
-| IA local, sin depender de APIs externas | ✅ Modelo de riesgo local · LLM local con Ollama (o Groq con internet) |
+| Funcionar sin conexión | ✅ App, datos, GPS e IA de Paty en el dispositivo (ver arriba) |
+| IA local, sin depender de APIs externas | ✅ Modelo de riesgo local · IA por reglas en el teléfono · LLM local con Ollama (o Groq con internet) |
 | Base de conocimiento oficial (RAG: MINSA, MIDAGRI, INDECI, ENFEN) | ✅ |
 | Directiva de mitigación y derivación al SAMU (106) | ✅ En chat, llamada y SMS |
 | Voz (STT/TTS) | ✅ Reconocimiento y voz del navegador · Whisper y Fish Audio opcionales |

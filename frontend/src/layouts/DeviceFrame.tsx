@@ -1,5 +1,6 @@
 import type { FC, ReactNode } from 'react'
 import { BatteryFull, Signal, Wifi } from 'lucide-react'
+import OfflineBanner from '../components/OfflineBanner'
 
 interface DeviceFrameProps {
   children: ReactNode
@@ -24,6 +25,9 @@ const DeviceFrame: FC<DeviceFrameProps> = ({ children }) => (
           <BatteryFull className="h-4 w-4" />
         </span>
       </div>
+
+      {/* "No conectado": ocupa su propia fila, así nunca tapa la cabecera de la pantalla */}
+      <OfflineBanner />
 
       {children}
 

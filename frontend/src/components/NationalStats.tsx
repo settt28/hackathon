@@ -40,7 +40,7 @@ export default function NationalStats() {
   useEffect(() => {
     const ctrl = new AbortController()
     getEstadisticas(5, ctrl.signal)
-      .then(setData)
+      .then(({ data }) => setData(data))
       .catch(() => !ctrl.signal.aborted && setFailed(true))
     return () => ctrl.abort()
   }, [])

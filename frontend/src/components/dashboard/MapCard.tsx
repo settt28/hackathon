@@ -3,6 +3,7 @@ import { ChevronRight, MapPin, Maximize2, Minus, Navigation2, Plus, RefreshCcw }
 import clsx from 'clsx'
 import type { RiskMapState } from '../../hooks/useRiskMap'
 import { projectRiskMap } from '../../lib/riskGeo'
+import { describeAge } from '../../lib/dates'
 
 const MIN_ZOOM = 1
 const MAX_ZOOM = 3
@@ -73,6 +74,10 @@ const MapCard: FC<{ state: RiskMapState; retry: () => void; onExpand: () => void
                   ? 'Buscando tu ubicación…'
                   : 'Ubicación no disponible'}
             </p>
+            {/* Sin conexión el mapa es el de la última vez: hay que decir de cuándo es */}
+            {state.kind === 'ok' && state.savedAt !== null && (
+              <p className="truncate text-[9px] text-slate-500 dark:text-slate-400">Guardado {describeAge(state.savedAt)}</p>
+            )}
           </div>
         </div>
         {mine && (

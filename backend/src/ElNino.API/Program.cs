@@ -148,7 +148,21 @@ app.Use(async (ctx, next) =>
     h.XFrameOptions = "DENY";
     h["Referrer-Policy"] = "no-referrer";
     if (ctx.Request.Path.StartsWithSegments("/api"))
+    {
         h.ContentSecurityPolicy = "default-src 'none'; frame-ancestors 'none'";
+
+        // Lecturas: el navegador puede reusar la respuesta unos segundos y seguir mostrándola mientras
+        // pide una nueva por detrás. En 2G/3G eso ahorra varios segundos al volver a una pantalla.
+        // Solo en respuestas correctas, y sin pisar un Cache-Control que haya puesto el endpoint.
+        if (HttpMethods.IsGet(ctx.Request.Method))
+            ctx.Response.OnStarting(static state =>
+            {
+                var res = (HttpResponse)state;
+                if (res.StatusCode == StatusCodes.Status200OK && string.IsNullOrEmpty(res.Headers.CacheControl))
+                    res.Headers.CacheControl = "public, max-age=30, stale-while-revalidate=300";
+                return Task.CompletedTask;
+            }, ctx.Response);
+    }
     await next();
 });
 

@@ -4,6 +4,7 @@ import DeviceFrame from '../layouts/DeviceFrame'
 import HistoryHeader from '../components/history/HistoryHeader'
 import ZoneSummaryCard from '../components/history/ZoneSummaryCard'
 import FilterChips from '../components/history/FilterChips'
+import SavedDataNote from '../components/SavedDataNote'
 import TimelineItem from '../components/history/TimelineItem'
 import { FILTERS, toHistoryEvent, type EventCategory, type HistoryEvent } from '../components/history/historyEvents'
 import { getActiveAlerts, getZoneHistory } from '../lib/api'
@@ -15,7 +16,7 @@ type State =
   | { kind: 'loading' }
   | { kind: 'no-gps' }
   | { kind: 'error'; message: string }
-  | { kind: 'ok'; place: string; coverage: string; alerts: number; events: HistoryEvent[] }
+  | { kind: 'ok'; place: string; coverage: string; alerts: number; events: HistoryEvent[]; savedAt: number | null }
 
 /** Historial real del distrito donde está la persona (INDECI – SINPAD) y sus alertas vigentes. */
 function useZoneHistory() {
@@ -29,14 +30,18 @@ function useZoneHistory() {
       if (ctrl.signal.aborted) return
       if (!pos) return setState({ kind: 'no-gps' })
       try {
-        const { ubicacion, historial } = await getZoneHistory(pos.latitude, pos.longitude, ctrl.signal)
-        const alerts = await getActiveAlerts(ubicacion.ubigeo, ctrl.signal).catch(() => [])
+        const { data, savedAt } = await getZoneHistory(pos.latitude, pos.longitude, ctrl.signal)
+        const { ubicacion, historial } = data
+        const alerts = await getActiveAlerts(ubicacion.ubigeo, ctrl.signal)
+          .then((r) => r.data)
+          .catch(() => [])
         setState({
           kind: 'ok',
           place: `${ubicacion.district}, ${ubicacion.department}`,
           coverage: historial.coverage,
           alerts: alerts.length,
           events: historial.events.map(toHistoryEvent),
+          savedAt,
         })
       } catch (e) {
         if (!ctrl.signal.aborted) setState({ kind: 'error', message: (e as Error).message })
@@ -91,6 +96,7 @@ const HistoryView: FC = () => {
               stats={stats}
             />
             <p className="mx-4 mt-2 text-[11px] text-slate-500 dark:text-slate-400">{state.coverage}</p>
+            <SavedDataNote savedAt={state.savedAt} className="mx-4 mt-1" />
 
             <h2 className="mt-5 px-4 text-[11px] font-extrabold tracking-[0.18em] text-sky-600 dark:text-cyan-300">REGISTRO HISTÓRICO</h2>
             {all.length > 0 && <FilterChips options={filters} value={filter} onChange={setFilter} />}
@@ -118,7 +124,7 @@ const HistoryView: FC = () => {
           <div className="mx-4 mt-8 flex flex-col items-center gap-3 text-center text-sm text-slate-600 dark:text-slate-300">
             {state.kind === 'loading' && <p>Cargando el historial de tu zona…</p>}
             {state.kind === 'no-gps' && <p>Activa tu ubicación para ver el historial de emergencias de tu distrito.</p>}
-            {state.kind === 'error' && <p>No pudimos cargar el historial. {state.message}</p>}
+            {state.kind === 'error' && <p>No pudimos cargar el historial y no hay una copia guardada en este teléfono. {state.message}</p>}
             {state.kind !== 'loading' && (
               <button type="button" onClick={retry} className="rounded-full border border-sky-200 bg-white px-4 py-2 font-semibold text-sky-700 dark:border-cyan-400/40 dark:bg-[#0d1828] dark:text-cyan-200">
                 Reintentar
