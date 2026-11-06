@@ -4,6 +4,7 @@ using System.Text;
 using ElNino.Core.Entities;
 using ElNino.Core.Services;
 using ElNino.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace ElNino.Infrastructure.Import;
 
@@ -22,7 +23,7 @@ public class SinpadImporter(AppDbContext db)
 
     // Columnas (mismo orden en todos los archivos publicados, aunque cambien los nombres de cabecera)
     private const int ColCode = 0, ColDate = 1, ColYear = 2, ColMonth = 3, ColUbigeo = 4, ColDep = 5, ColProv = 6,
-        ColDist = 7, ColHazard = 8, ColDeaths = 11, ColMissing = 12, ColDamnified = 14, ColAffected = 15,
+        ColDist = 7, ColHazard = 8, ColRegion = 10, ColDeaths = 11, ColMissing = 12, ColDamnified = 14, ColAffected = 15,
         ColHousesDestroyed = 16, ColHousesDamaged = 17;
 
     private static readonly Dictionary<string, int> Months = new()
@@ -65,6 +66,8 @@ public class SinpadImporter(AppDbContext db)
         int read = 0, skippedType = 0, skippedOther = 0, minY = int.MaxValue, maxY = 0;
         var events = new List<HistoricalEvent>();
         var seen = new HashSet<string>();
+        // Región natural (COSTA/SIERRA/SELVA) más frecuente por distrito, para completar la tabla de distritos
+        var regions = new Dictionary<string, Dictionary<string, int>>();
 
         using var zip = ZipFile.OpenRead(zipPath);
         foreach (var entry in zip.Entries.Where(e => e.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)).OrderBy(e => e.Name))
@@ -78,6 +81,14 @@ public class SinpadImporter(AppDbContext db)
                 read++;
                 var c = SplitCsv(line);
                 if (c.Count <= ColHousesDamaged) { skippedOther++; continue; }
+
+                var region = TextNormalizer.Normalize(c[ColRegion]).ToUpperInvariant();
+                if (region is "COSTA" or "SIERRA" or "SELVA")
+                {
+                    var key = c[ColUbigeo].Trim().PadLeft(6, '0');
+                    if (!regions.TryGetValue(key, out var counts)) regions[key] = counts = [];
+                    counts[region] = counts.GetValueOrDefault(region) + 1;
+                }
 
                 // Filtro por año antes de todo lo demás (más rápido)
                 if (!int.TryParse(c[ColYear].Trim(), out var year) || year < minYear) { skippedOther++; continue; }
@@ -126,7 +137,18 @@ public class SinpadImporter(AppDbContext db)
         }
 
         await HistoricalEventWriter.ReplaceAsync(db, Prefix, events, ct);
+        await UpdateNaturalRegionsAsync(regions, ct);
         return new ImportResult("INDECI – SINPAD", read, events.Count, skippedType, skippedOther, events.Count == 0 ? 0 : minY, maxY);
+    }
+
+    private async Task UpdateNaturalRegionsAsync(Dictionary<string, Dictionary<string, int>> regions, CancellationToken ct)
+    {
+        var districts = await db.Districts.ToListAsync(ct);
+        foreach (var d in districts)
+            if (regions.TryGetValue(d.Ubigeo, out var counts))
+                d.NaturalRegion = counts.OrderByDescending(kv => kv.Value).First().Key;
+        await db.SaveChangesAsync(ct);
+        db.ChangeTracker.Clear();
     }
 
     /// <summary>
