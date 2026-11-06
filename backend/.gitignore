@@ -482,3 +482,11 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Base de datos SQLite local (se genera al arrancar la API)
+*.db
+*.db-shm
+*.db-wal
+
+# CSV sueltos del SINPAD: en git solo va el zip (data/sinpad/sinpad_emergencias.zip)
+data/sinpad/*.csv

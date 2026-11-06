@@ -1,6 +1,69 @@
-@ElNino.API_HostAddress = http://localhost:5261
+@host = http://localhost:5261
 
-GET {{ElNino.API_HostAddress}}/api/salud/alertas/
-Accept: application/json
+### Alertas vigentes de Chosica
+GET {{host}}/api/alertas?ubigeo=150118
 
-###
+### Alertas de salud (todas)
+GET {{host}}/api/salud/alertas
+
+### Consejos de infraestructura sobre huaicos
+GET {{host}}/api/infraestructura/consejos?peligro=Huaico
+
+### Búsqueda de consejos de agricultura
+GET {{host}}/api/agricultura/consejos?q=lluvia chacra
+
+### Postas más cercanas (Chosica centro)
+GET {{host}}/api/salud/centros-cercanos?lat=-11.9369&lon=-76.6966&cantidad=3
+
+### Solo establecimientos con emergencias
+GET {{host}}/api/salud/centros-cercanos?lat=-11.9369&lon=-76.6966&soloEmergencias=true
+
+### ¿En qué distrito estoy? (GPS → ubigeo)
+GET {{host}}/api/ubicacion?lat=-11.9369&lon=-76.6966
+
+### Historial de donde está la persona (GPS)
+GET {{host}}/api/zonas/historial?lat=-5.19&lon=-80.63&limite=10
+
+### Historial de un distrito por ubigeo
+GET {{host}}/api/zonas/150118/historial?limite=10
+
+### Descargar e importar el historial real (SINPAD + DesInventar)
+POST {{host}}/api/admin/importar/historial?descargar=true
+X-Api-Key: demo-operador-2026
+
+### Zonas de riesgo y seguras (GeoJSON)
+GET {{host}}/api/zonas/150118/mapa
+
+### Radar geométrico: ¿estoy en zona de riesgo?
+GET {{host}}/api/zonas/verificar?lat=-11.930&lon=-76.696
+
+### Paty: pregunta de prevención con historial de la zona
+POST {{host}}/api/paty/chat
+Content-Type: application/json
+
+{ "message": "¿Cómo protejo mi casa de un huaico?", "latitude": -11.9369, "longitude": -76.6966 }
+
+### Paty: emergencia médica con ubicación
+POST {{host}}/api/paty/chat
+Content-Type: application/json
+
+{ "message": "Mi hijo tiene dengue y le sangra la nariz", "ubigeo": "150118", "latitude": -11.9369, "longitude": -76.6966 }
+
+### Paquete offline para el frontend
+GET {{host}}/api/sync?ubigeo=150118
+
+### Publicar alerta (operador)
+POST {{host}}/api/alertas
+Content-Type: application/json
+X-Api-Key: demo-operador-2026
+
+{
+  "dominio": "Infraestructura",
+  "nivel": "Critico",
+  "peligro": "Huaico",
+  "titulo": "Alerta de huaico en Quebrada Quirio",
+  "descripcion": "Aléjate del cauce y sube a zona alta. Llama al 116 si hay personas atrapadas.",
+  "ubigeo": "150118",
+  "region": "Lima",
+  "horasVigencia": 6
+}

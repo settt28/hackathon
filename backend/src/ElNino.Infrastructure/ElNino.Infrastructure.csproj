@@ -5,7 +5,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.22" />
+  </ItemGroup>
+
+  <!-- Datos semilla: se incrustan en el ensamblado para no depender de rutas de archivos -->
+  <ItemGroup>
+    <EmbeddedResource Include="Persistence\Seed\*.json" />
   </ItemGroup>
 
   <PropertyGroup>

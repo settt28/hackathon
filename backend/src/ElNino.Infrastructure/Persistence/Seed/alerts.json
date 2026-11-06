@@ -1,0 +1,20 @@
+[
+  {
+    "domain": "Infraestructura", "level": "Alto", "hazard": "Huaico",
+    "title": "[EJEMPLO] Riesgo de huaicos en quebradas de Chosica",
+    "description": "Lluvias moderadas a fuertes en la cuenca alta del Rímac. Identifica tu zona segura y ten lista tu mochila.",
+    "region": "Lima", "ubigeo": "150118", "source": "Dato de ejemplo"
+  },
+  {
+    "domain": "Salud", "level": "Medio", "hazard": "Dengue",
+    "title": "[EJEMPLO] Aumento de casos de dengue",
+    "description": "Elimina recipientes con agua estancada y usa repelente. Ante fiebre, acude a tu centro de salud.",
+    "region": "Piura", "ubigeo": "200101", "source": "Dato de ejemplo"
+  },
+  {
+    "domain": "Agricultura", "level": "Bajo", "hazard": "LluviaIntensa",
+    "title": "[EJEMPLO] Lluvias moderadas esta semana",
+    "description": "Revisa los canales de drenaje de tu parcela y protege semillas e insumos de la humedad.",
+    "region": "Piura", "ubigeo": "200101", "source": "Dato de ejemplo"
+  }
+]
