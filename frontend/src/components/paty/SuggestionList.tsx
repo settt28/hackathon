@@ -9,7 +9,8 @@ interface SuggestionListProps {
 /** Lista de sugerencias rápidas renderizada a partir de datos (estilo de tarjeta del dashboard). */
 export default function SuggestionList({ items, onSelect }: SuggestionListProps) {
   return (
-    <ul className="mt-8 flex flex-col gap-2.5 px-4">
+    // Tablet/PC: dos columnas de sugerencias
+    <ul className="mt-8 flex flex-col gap-2.5 px-4 @3xl:grid @3xl:grid-cols-2 @3xl:gap-3 @3xl:px-6">
       {items.map((item) => {
         const Icon = item.icon
         return (

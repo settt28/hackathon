@@ -1,7 +1,10 @@
-import { useMemo, useState, type FC } from 'react'
+import { useMemo, useRef, useState, type FC } from 'react'
 import { LocateFixed, Minus, Navigation2, Plus } from 'lucide-react'
 import type { RiskMap as RiskMapData } from '../../lib/api'
+import { useTheme } from '../../hooks/useTheme'
 import { projectRiskMap } from '../../lib/riskGeo'
+import { useElementSize } from '../../hooks/useElementSize'
+import { BaseMapTiles, DistrictLabels, MapAttribution } from './MapLayers'
 
 interface RiskMapProps {
   map: RiskMapData
@@ -18,19 +21,24 @@ const controlButton =
   'flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-sky-300 hover:text-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 disabled:opacity-40 dark:border-white/15 dark:bg-[#070d17]/90 dark:text-white dark:shadow-none dark:hover:border-cyan-400/50 dark:hover:text-cyan-300 dark:focus-visible:ring-cyan-400'
 
 /**
- * Mapa de riesgo grande (pop-up): los distritos reales alrededor del usuario; cada uno se puede tocar para ver
- * su detalle. El zoom escala desde el centro, donde está el usuario.
+ * Mapa de riesgo grande (pop-up): 20 km alrededor del usuario sobre el mapa base (costa, ríos, calles), con los
+ * distritos reales y sus nombres; cada uno se puede tocar para ver su detalle. El zoom escala desde el centro,
+ * donde está el usuario, y al acercar aparecen más nombres.
  */
 const RiskMap: FC<RiskMapProps> = ({ map, selected, onSelect, onLocate }) => {
   const [zoom, setZoom] = useState(1)
   const changeZoom = (delta: number) => setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z + delta)))
   const geo = useMemo(() => projectRiskMap(map), [map])
+  const boxRef = useRef<HTMLDivElement>(null)
+  const { width, height } = useElementSize(boxRef)
+  const { isDark } = useTheme()
   // El seleccionado se dibuja al final para que su borde quede encima
   const paths = [...geo.paths].sort((a, b) => Number(a.f.properties.ubigeo === selected) - Number(b.f.properties.ubigeo === selected))
 
   return (
-    <div className="relative aspect-square w-full overflow-hidden rounded-3xl border border-slate-200 bg-[#e9f3fa] dark:border-cyan-400/25 dark:bg-[#0a1524]">
+    <div ref={boxRef} className="relative aspect-square w-full overflow-hidden rounded-3xl border border-slate-200 bg-[#e9f3fa] dark:border-cyan-400/25 dark:bg-[#0a1524]">
       <div className="absolute inset-0 bg-map-grid" aria-hidden />
+      <BaseMapTiles geo={geo} width={width} height={height} zoom={zoom} dark={isDark} />
 
       <svg
         viewBox={geo.viewBox}
@@ -62,7 +70,10 @@ const RiskMap: FC<RiskMapProps> = ({ map, selected, onSelect, onLocate }) => {
             />
           )
         })}
+        <DistrictLabels geo={geo} width={width} height={height} zoom={zoom} highlight={selected} />
       </svg>
+
+      <MapAttribution className="bottom-2.5 right-3" />
 
       {/* Marcador del usuario: el viewBox está centrado en él */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" aria-hidden>

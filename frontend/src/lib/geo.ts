@@ -6,7 +6,10 @@
  *    `enableHighAccuracy: true` (satélite) con más tiempo de espera, porque la ubicación por
  *    antenas/wifi —que es la rápida— sí necesita red y fallaría.
  *  - La última posición buena queda guardada en el dispositivo, así la app abre mostrando la zona
- *    correcta incluso antes de tener señal (o si el GPS no engancha bajo techo).
+ *    correcta incluso antes de tener señal (o si el GPS no engancha bajo techo), y sobrevive a
+ *    cerrar y reabrir la app.
+ *  - En una emergencia nadie puede esperar al GPS: `getLastPosition()` responde al instante y
+ *    `getPositionWithin(ms)` pone un plazo máximo.
  */
 type Coords = { latitude: number; longitude: number }
 
@@ -55,11 +58,15 @@ function store(coords: Coords) {
 
 const urlCoords = fromUrl()
 let cached: Promise<PositionFix | null> | null = null
+/** Última conocida en memoria; arranca con la de la URL o la guardada en el dispositivo. */
+let last: PositionFix | null = urlCoords ? { ...urlCoords, source: 'url', at: Date.now() } : readStored()
 
-/** Última ubicación conocida, sin pedir nada al GPS. Sirve para pintar la pantalla de inmediato. */
-export function getLastKnownPosition(): PositionFix | null {
-  return urlCoords ? { ...urlCoords, source: 'url', at: Date.now() } : readStored()
-}
+/** La última ubicación conocida, sin esperar nada (para emergencias). */
+export const getLastPosition = (): Coords | null =>
+  last ? { latitude: last.latitude, longitude: last.longitude } : null
+
+/** Igual que `getLastPosition` pero con el detalle de origen y antigüedad. */
+export const getLastPositionFix = (): PositionFix | null => last
 
 function askGeolocation(): Promise<PositionFix | null> {
   const offline = !navigator.onLine
@@ -68,7 +75,8 @@ function askGeolocation(): Promise<PositionFix | null> {
       ({ coords }) => {
         const fix = { latitude: coords.latitude, longitude: coords.longitude }
         store(fix)
-        resolve({ ...fix, source: 'gps', at: Date.now() })
+        last = { ...fix, source: 'gps', at: Date.now() }
+        resolve(last)
       },
       () => resolve(null),
       offline
@@ -91,6 +99,7 @@ export function getPositionFix(): Promise<PositionFix | null> {
     const result = fix ?? readStored()
     // Sin ninguna ubicación: se permite reintentar (el permiso puede concederse después)
     if (!result) cached = null
+    else last ??= result
     return result
   })
   return cached
@@ -99,6 +108,11 @@ export function getPositionFix(): Promise<PositionFix | null> {
 /** Solo las coordenadas, para quien no necesita saber de dónde salieron. */
 export function getPosition(): Promise<Coords | null> {
   return getPositionFix().then((fix) => (fix ? { latitude: fix.latitude, longitude: fix.longitude } : null))
+}
+
+/** La ubicación si llega en `ms`; si no, la última conocida. El pedido sigue en curso para la próxima consulta. */
+export function getPositionWithin(ms: number): Promise<Coords | null> {
+  return Promise.race([getPosition(), new Promise<Coords | null>((resolve) => setTimeout(() => resolve(getLastPosition()), ms))])
 }
 
 /**

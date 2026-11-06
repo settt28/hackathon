@@ -1,10 +1,13 @@
-import { useState } from 'react'
-import { MapPin, Phone, Sparkles, Square, TriangleAlert, Volume2 } from 'lucide-react'
+import { memo, useState } from 'react'
+import { MapPin, Phone, Sparkles, Square, TriangleAlert, Volume2, WifiOff } from 'lucide-react'
 import type { ChatMessage } from '../../hooks/usePatyChat'
 import { speak, stopSpeaking } from '../../lib/speech'
 import { safeUrl } from '../../lib/url'
 
 /** Lee la respuesta en voz alta (Fish Audio en el servidor o la voz del navegador, sin internet). */
+/** Mismo redondeo que usa Paty en su respuesta: toFixed(1) daría "0.1" para 0.15 y las dos cifras no cuadrarían. */
+const oneDecimalKm = (km: number) => (Math.round(km * 10) / 10).toFixed(1)
+
 function SpeakButton({ text }: { text: string }) {
   const [speaking, setSpeaking] = useState(false)
   return (
@@ -28,8 +31,11 @@ function SpeakButton({ text }: { text: string }) {
   )
 }
 
-/** Burbuja de un mensaje. Las de Paty muestran además llamadas de emergencia, avisos, postas y fuentes. */
-export default function ChatMessageBubble({ message }: { message: ChatMessage }) {
+/**
+ * Burbuja de un mensaje. Las de Paty muestran además llamadas de emergencia, avisos, postas y fuentes.
+ * Memorizada: escribir en el campo de texto no vuelve a dibujar toda la conversación.
+ */
+export default memo(function ChatMessageBubble({ message }: { message: ChatMessage }) {
   if (message.role === 'user') {
     return (
       <li className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-sky-600 px-4 py-2.5 text-[15px] text-white dark:bg-cyan-400 dark:text-[#070d17]">
@@ -64,6 +70,12 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
             <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400" title="Redactado por el modelo de lenguaje con fuentes oficiales">
               <Sparkles className="h-3 w-3" aria-hidden />
               IA
+            </span>
+          )}
+          {d?.offline && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400" title="Respondido en tu teléfono con los consejos oficiales guardados">
+              <WifiOff className="h-3 w-3" aria-hidden />
+              Modo sin conexión
             </span>
           )}
         </div>
@@ -114,7 +126,7 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
                 className="flex gap-2 text-sky-700 hover:underline dark:text-sky-300"
               >
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                {c.center.name} · {c.distanceKm.toFixed(1)} km (~{c.walkingMinutes} min a pie)
+                {c.center.name} · {oneDecimalKm(c.distanceKm)} km (~{c.walkingMinutes} min a pie)
               </a>
             </li>
           ))}
@@ -140,4 +152,4 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
       )}
     </li>
   )
-}
+})

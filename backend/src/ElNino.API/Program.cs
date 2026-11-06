@@ -65,7 +65,7 @@ builder.Services.AddScoped<RiskModelService>();
 
 // CORS: orígenes del frontend en "Cors:Origins" (por defecto, Vite en dev y preview)
 const string FrontendCors = "Frontend";
-var origins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:5173", "http://localhost:4173"];
+var origins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:5173", "http://localhost:4173", "https://localhost"]; // https://localhost: origen del APK (Capacitor)
 builder.Services.AddCors(o => o.AddPolicy(FrontendCors, p => p.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod()));
 
 // Respuestas comprimidas: el GeoJSON del mapa baja ~5-10 veces, clave en redes 2G/3G
@@ -105,6 +105,14 @@ var app = builder.Build();
 
 // Crea la BD y carga los datos semilla si está vacía
 await app.Services.InitializeDatabaseAsync();
+
+// Genera los datos de Paty sin conexión y termina (ver OfflineExport)
+var exportArg = Array.IndexOf(args, "--export-offline");
+if (exportArg >= 0 && exportArg + 1 < args.Length)
+{
+    await OfflineExport.RunAsync(app.Services, args[exportArg + 1]);
+    return;
+}
 
 app.Logger.LogInformation("{Status}", riskModelStatus);
 try { ChannelText.SelfCheck(); }

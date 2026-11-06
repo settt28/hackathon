@@ -11,6 +11,7 @@ import { defineConfig, type Plugin } from 'vite'
  */
 function offlinePrecache(): Plugin {
   let files: string[] = []
+  let bundled = new Set<string>()
   // El directorio de salida sale del build, no se asume "dist": con --outDir distinto, el sw.js
   // se publicaría con el marcador sin sustituir y el navegador no registraría nada.
   let outDir = 'dist'
@@ -23,6 +24,7 @@ function offlinePrecache(): Plugin {
       files = Object.keys(bundle)
         .filter((name) => name !== 'index.html' && !name.endsWith('.map'))
         .map((name) => `/${name}`)
+      bundled = new Set([...files, '/index.html'])
     },
     // closeBundle y no writeBundle: public/ (donde vive sw.js) se copia al final del build
     closeBundle() {
@@ -30,7 +32,20 @@ function offlinePrecache(): Plugin {
       const source = fs.existsSync(swPath) ? fs.readFileSync(swPath, 'utf8') : null
       if (source === null) return this.warn(`no se encontró ${swPath}: la app no funcionará sin conexión`)
 
-      const manifest = ['/', '/manifest.webmanifest', '/favicon.svg', '/icons.svg', ...files]
+      // Todo lo que vive en public/ (manifest, iconos y los datos offline de Paty: distritos y
+      // postas, ~1,5 MB) no pasa por Rollup, así que hay que recorrer la carpeta publicada.
+      // Sin esto, la web sin conexión se queda sin distritos ni postas (en el APK son locales).
+      const fromPublic: string[] = []
+      const walk = (dir: string, prefix: string) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const published = `${prefix}/${entry.name}`
+          if (entry.isDirectory()) walk(path.join(dir, entry.name), published)
+          else if (entry.name !== 'sw.js' && !bundled.has(published)) fromPublic.push(published)
+        }
+      }
+      walk(outDir, '')
+
+      const manifest = ['/', ...fromPublic, ...files]
       // Identidad del build: los nombres con hash ya cambian en cada despliegue, así que sirven de huella
       const buildId = `paty-${createHash('sha256').update(files.join('|')).digest('hex').slice(0, 12)}`
       const filled = source

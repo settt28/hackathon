@@ -10,7 +10,7 @@ let cachedLocation: Promise<UserLocation | null> | null = null
 
 /**
  * Distrito del usuario. Se resuelve una vez y se comparte entre componentes; si falla, se reintenta al volver a montar.
- * Sin conexión funciona igual: el GPS es satelital y la traducción a distrito sale de la última guardada.
+ * Sin conexión funciona igual: el GPS es satelital y la traducción a distrito sale de la copia guardada.
  */
 function getUserLocation(): Promise<UserLocation | null> {
   cachedLocation ??= getPosition()
@@ -70,6 +70,7 @@ export function useAlertas(dominio: Dominio) {
     const ctrl = new AbortController()
     getAlertas(dominio, ctrl.signal)
       .then(({ data, savedAt }) => {
+        if (ctrl.signal.aborted) return
         setAlertas([...data].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]))
         setSavedAt(savedAt)
         setStatus('ok')

@@ -25,21 +25,28 @@ const RiskMapSheet: FC<RiskMapSheetProps> = ({ open, onClose, onViewHistory, sta
   const [selected, setSelected] = useState<string | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
-  // Escape para cerrar + foco inicial en el botón de cerrar
+  // Siempre el onClose más reciente: el foco no salta al botón de cerrar cada vez que el mapa se refresca
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
+
+  // Escape para cerrar + foco inicial en el botón de cerrar (solo al abrir)
   useEffect(() => {
     if (!open) return
     closeRef.current?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCloseRef.current()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
   // Por defecto, el distrito del usuario
   const current = map?.features.find((f) => f.properties.ubigeo === selected) ?? mine
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col justify-end">
+    // Móvil: hoja inferior. Tablet/PC (@3xl): ventana centrada con el mapa y el detalle lado a lado
+    <div className="absolute inset-0 z-50 flex flex-col justify-end @3xl:items-center @3xl:justify-center @3xl:p-8">
       {/* Fondo oscuro: tocarlo cierra el pop-up */}
       <button type="button" aria-label="Cerrar mapa de riesgo" onClick={onClose} className="absolute inset-0 bg-slate-950/60 motion-safe:animate-fade-in" tabIndex={-1} />
 
@@ -47,10 +54,10 @@ const RiskMapSheet: FC<RiskMapSheetProps> = ({ open, onClose, onViewHistory, sta
         role="dialog"
         aria-modal="true"
         aria-labelledby="riesgo-titulo"
-        className="relative max-h-[94%] overflow-y-auto rounded-t-[2rem] border-t border-slate-200 bg-white px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl motion-safe:animate-sheet-up dark:border-cyan-400/20 dark:bg-[#0b1a26]"
+        className="@container relative max-h-[94%] overflow-y-auto rounded-t-[2rem] border-t border-slate-200 bg-white px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl motion-safe:animate-sheet-up dark:border-cyan-400/20 dark:bg-[#0b1a26] @3xl:max-h-full @3xl:w-full @3xl:max-w-5xl @3xl:rounded-[2rem] @3xl:border @3xl:px-6 @3xl:pb-6 @3xl:pt-5 @3xl:motion-safe:animate-[alert-in_.25s_ease-out]"
       >
-        {/* Asa de arrastre (visual) */}
-        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-white/20" aria-hidden />
+        {/* Asa de arrastre (visual, solo en la hoja inferior del móvil) */}
+        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300 dark:bg-white/20 @2xl:hidden" aria-hidden />
 
         <header className="flex items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-sky-50 dark:border-cyan-400/30 dark:bg-transparent">
@@ -74,15 +81,18 @@ const RiskMapSheet: FC<RiskMapSheetProps> = ({ open, onClose, onViewHistory, sta
         </header>
 
         {map && current ? (
-          <>
-            <div className="mt-3">
+          // Con espacio (@2xl de la propia ventana): mapa a la izquierda; leyenda y detalle a la derecha
+          <div className="@2xl:mt-4 @2xl:grid @2xl:grid-cols-2 @2xl:items-start @2xl:gap-6">
+            <div className="mt-3 @2xl:mt-0">
               <RiskMap map={map} selected={current.properties.ubigeo} onSelect={setSelected} onLocate={() => setSelected(null)} />
             </div>
-            <RiskLegend legend={map.leyenda} />
-            <p className="mt-2 text-center text-[11px] text-slate-500 dark:text-slate-400">Toca un distrito para ver su detalle.</p>
-            <DistrictDetail district={current} />
-            <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{map.aviso}</p>
-          </>
+            <div>
+              <RiskLegend legend={map.leyenda} />
+              <p className="mt-2 text-center text-[11px] text-slate-500 dark:text-slate-400 @2xl:text-left">Toca un distrito para ver su detalle.</p>
+              <DistrictDetail district={current} />
+              <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{map.aviso}</p>
+            </div>
+          </div>
         ) : (
           <div className="my-10 flex flex-col items-center gap-3 text-center text-sm text-slate-600 dark:text-slate-300">
             <p>{state.kind === 'loading' ? 'Cargando el mapa de riesgo…' : 'Activa tu ubicación para ver el riesgo de tu zona.'}</p>

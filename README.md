@@ -188,11 +188,12 @@ seguir sirviendo en ese momento:
 
 | Pieza | Cómo funciona sin internet |
 |---|---|
-| **La app abre** | Service worker (`frontend/public/sw.js`). El build inyecta la lista real de archivos (plugin `paty-offline-precache` en `vite.config.ts`), incluidos los trozos de rutas que se cargan en diferido, así que cualquier pantalla abre sin red. |
-| **Los datos** | El frontend descarga `/api/sync` (paquete de la zona: consejos, palabras de alarma, postas, alertas, historial, boletines) y lo guarda en IndexedDB (`src/lib/sync.ts`). Además, cada lectura buena de la API queda guardada con su fecha (`src/lib/responseCache.ts`) y se muestra si la red falla. |
-| **El GPS** | El chip GPS es satelital y no necesita datos: sin conexión se pide con `enableHighAccuracy` y más tiempo de espera, porque la ubicación por antenas sí requiere red. La última posición buena queda guardada en el dispositivo (`src/lib/geo.ts`). |
-| **La IA** | `src/lib/localPaty.ts` es el mismo cerebro por reglas del backend (triaje por palabras de alarma, búsqueda de consejos, posta más cercana) corriendo en el teléfono sobre el paquete descargado. Responde con indicaciones oficiales, nunca inventadas. |
-| **El aviso** | Franja **"No conectado"** arriba de la app (`src/components/OfflineBanner.tsx`). Aparece también si el servidor no responde, no solo si el teléfono perdió la señal. Cada pantalla indica de cuándo son los datos que está mostrando. |
+| **La app abre** | Service worker (`frontend/public/sw.js`). El build inyecta la lista real de archivos (plugin `paty-offline-precache` en `vite.config.ts`): los trozos de rutas diferidas y también los datos de `public/offline/`, así que cualquier pantalla abre sin red. En el APK no hace falta: Capacitor ya sirve los archivos desde el teléfono. |
+| **Quién responde** | `src/lib/paty/client.ts` decide con un presupuesto de tiempo: una **emergencia se responde al instante en el teléfono**, sin esperar a la red ni al GPS; sin backend, también; con red, contesta el servidor (con IA si la tiene) y si tarda más de ~5 s responde el teléfono. |
+| **La IA** | `src/lib/paty/engine.ts` es el mismo cerebro por reglas del backend (triaje por palabras de alarma, búsqueda de consejos, distrito y posta más cercana) corriendo en el dispositivo. Responde con indicaciones oficiales, nunca inventadas. Sus datos los genera el backend con `dotnet run --export-offline <carpeta>` (ver `OfflineExport.cs`). |
+| **Los datos de pantalla** | Cada lectura buena de la API (mapa, historial, alertas, cifras) se guarda con su fecha en IndexedDB (`src/lib/responseCache.ts`) y se muestra si la red falla, indicando de cuándo es. |
+| **El GPS** | El chip GPS es satelital y no necesita datos: sin conexión se pide con `enableHighAccuracy` y más tiempo de espera, porque la ubicación por antenas sí requiere red. La última posición buena se guarda en el dispositivo y `getPositionWithin(ms)` pone un plazo para que una emergencia nunca espere al GPS (`src/lib/geo.ts`). |
+| **El aviso** | Franja **"No conectado"** arriba de la app (`src/components/OfflineBanner.tsx`). Aparece también si el servidor no responde, no solo si el teléfono perdió la señal. |
 
 Lo único que necesita conexión es transcribir un audio (Whisper vive en el servidor); el texto sí lo
 atiende la IA local, y Paty responde en voz alta con la voz del navegador.

@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core'
+
 /**
  * Cliente HTTP único del frontend.
  * En desarrollo, Vite redirige /api al backend (ver vite.config.ts), así no hay URLs fijas ni CORS.
@@ -5,8 +7,15 @@
  */
 import { reportServerReachable } from './connection'
 import { readCache, writeCache } from './responseCache'
+import { MAP_RADIUS_KM } from './riskGeo'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
+
+/** Dentro del APK no hay proxy de Vite: sin VITE_API_URL no hay backend al que llamar. */
+const hasBackend = BASE_URL !== '' || !Capacitor.isNativePlatform()
+
+/** ¿Vale la pena intentar llamar al backend? Si es false, ni se intenta: se evita esperar a una red que no está. */
+export const backendAvailable = () => hasBackend && navigator.onLine
 
 export class ApiError extends Error {
   readonly status?: number
@@ -16,16 +25,38 @@ export class ApiError extends Error {
   }
 }
 
+// AbortSignal.timeout/any no existen en WebViews de Android antiguos (< Chrome 116): respaldo equivalente
+function timeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms)
+  const ctrl = new AbortController()
+  setTimeout(() => ctrl.abort(new DOMException('Tiempo agotado', 'TimeoutError')), ms)
+  return ctrl.signal
+}
+
+function withTimeout(signal: AbortSignal | null | undefined, ms: number): AbortSignal {
+  const timeout = timeoutSignal(ms)
+  if (!signal) return timeout
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any([signal, timeout])
+  const ctrl = new AbortController()
+  for (const s of [signal, timeout]) {
+    if (s.aborted) {
+      ctrl.abort(s.reason)
+      break
+    }
+    s.addEventListener('abort', () => ctrl.abort(s.reason), { once: true })
+  }
+  return ctrl.signal
+}
+
 export async function api<T>(path: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
   const { timeoutMs = 15000, signal, ...rest } = init
-  // Corta peticiones colgadas (redes 2G/3G) y respeta la cancelación del llamador
-  const timeout = AbortSignal.timeout(timeoutMs)
   let res: Response
   try {
     res = await fetch(BASE_URL + path, {
       ...rest,
       headers: { 'Content-Type': 'application/json', ...rest.headers },
-      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+      // Corta peticiones colgadas (redes 2G/3G) y respeta la cancelación del llamador
+      signal: withTimeout(signal, timeoutMs),
     })
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e
@@ -44,7 +75,35 @@ export async function api<T>(path: string, init: RequestInit & { timeoutMs?: num
   return res.json() as Promise<T>
 }
 
-// ---- Lecturas con respaldo offline ----
+/**
+ * GET con caché en memoria: las pantallas que piden lo mismo (Inicio y cada módulo) comparten una sola petición
+ * y al volver a una pantalla los datos aparecen al instante. Si la petición falla no se guarda, así "Reintentar"
+ * vuelve a pedirla. Cancelar desde un componente solo lo desconecta a él; la petición compartida sigue.
+ */
+const getCache = new Map<string, { at: number; data: Promise<unknown> }>()
+
+function cachedGet<T>(path: string, ttlMs: number, signal?: AbortSignal): Promise<T> {
+  let entry = getCache.get(path)
+  if (!entry || Date.now() - entry.at > ttlMs) {
+    const created: { at: number; data: Promise<unknown> } = { at: Date.now(), data: Promise.resolve() }
+    created.data = api<T>(path).catch((e) => {
+      if (getCache.get(path) === created) getCache.delete(path)
+      throw e
+    })
+    getCache.set(path, created)
+    entry = created
+  }
+  const data = entry.data as Promise<T>
+  if (!signal) return data
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new DOMException('Cancelado', 'AbortError'))
+    if (signal.aborted) return onAbort()
+    signal.addEventListener('abort', onAbort, { once: true })
+    data.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort))
+  })
+}
+
+const MINUTE = 60_000
 
 /**
  * Resultado de una lectura. `savedAt` es null cuando los datos acaban de llegar del servidor;
@@ -56,20 +115,21 @@ export interface Fresh<T> {
 }
 
 /**
- * GET con respaldo offline: guarda cada respuesta buena y, si la red falla, devuelve la última copia.
- * Solo lanza error cuando no hay conexión Y tampoco hay nada guardado.
+ * Las dos capas juntas: `cachedGet` comparte la petición entre pantallas durante unos minutos
+ * (rápido con red), y esto además guarda cada respuesta buena en IndexedDB para poder mostrarla
+ * cuando no hay red. Solo lanza error si falla la red Y tampoco hay copia guardada.
  *
  * `cacheKey` identifica *qué* se está leyendo, sin las coordenadas: dos lecturas del mapa desde
  * puntos GPS casi iguales son la misma cosa y deben reutilizar la copia guardada.
  */
-async function apiGet<T>(path: string, cacheKey: string, signal?: AbortSignal, timeoutMs?: number): Promise<Fresh<T>> {
-  // Sin conexión declarada: no se espera a que la red falle, se responde con lo guardado
-  if (!navigator.onLine) {
+async function persistedGet<T>(path: string, cacheKey: string, ttlMs: number, signal?: AbortSignal): Promise<Fresh<T>> {
+  // Sin conexión declarada no se espera a que la red falle: se responde con lo guardado
+  if (!backendAvailable()) {
     const saved = await readCache<T>(cacheKey)
     if (saved) return { data: saved.data, savedAt: saved.savedAt }
   }
   try {
-    const data = await api<T>(path, { signal, timeoutMs })
+    const data = await cachedGet<T>(path, ttlMs, signal)
     void writeCache(cacheKey, data)
     return { data, savedAt: null }
   } catch (e) {
@@ -115,6 +175,8 @@ export interface PatyReply {
   nearestCenters: NearbyHealthCenter[]
   actions: PatyAction[]
   usedAi: boolean
+  /** Respondió el teléfono, sin backend (ver lib/paty/engine.ts). */
+  offline?: boolean
 }
 
 export interface PatyRequest {
@@ -123,8 +185,8 @@ export interface PatyRequest {
   longitude?: number
 }
 
-export const sendPatyMessage = (req: PatyRequest, signal?: AbortSignal) =>
-  api<PatyReply>('/api/paty/chat', { method: 'POST', body: JSON.stringify(req), signal, timeoutMs: 30000 })
+export const sendPatyMessage = (req: PatyRequest, signal?: AbortSignal, timeoutMs = 30000) =>
+  api<PatyReply>('/api/paty/chat', { method: 'POST', body: JSON.stringify(req), signal, timeoutMs })
 
 // ---- Alertas y consejos por dominio (ElNino.API/Controllers/DomainControllerBase.cs) ----
 
@@ -165,14 +227,15 @@ export interface UserLocation {
   distanceKm: number | null
 }
 
+// Las alertas cambian durante el día: se reutilizan 1 minuto. Los consejos son fijos: 10 minutos.
 export const getAlertas = (dominio: Dominio, signal?: AbortSignal) =>
-  apiGet<Alert[]>(`/api/${dominio}/alertas`, `alertas:${dominio}`, signal)
+  persistedGet<Alert[]>(`/api/${dominio}/alertas`, `alertas:${dominio}`, MINUTE, signal)
 
 export const getConsejos = (dominio: Dominio, signal?: AbortSignal) =>
-  apiGet<PreventionTip[]>(`/api/${dominio}/consejos`, `consejos:${dominio}`, signal)
+  persistedGet<PreventionTip[]>(`/api/${dominio}/consejos`, `consejos:${dominio}`, 10 * MINUTE, signal)
 
 export const getUbicacion = (lat: number, lon: number) =>
-  apiGet<UserLocation>(`/api/ubicacion?lat=${lat}&lon=${lon}`, 'ubicacion')
+  persistedGet<UserLocation>(`/api/ubicacion?lat=${lat}&lon=${lon}`, 'ubicacion', MINUTE)
 
 // ---- Mapa de riesgo (ElNino.API/Controllers/MapaController.cs → GET /api/mapa/riesgo) ----
 
@@ -205,7 +268,7 @@ export interface RiskMap {
 }
 
 export const getMapaRiesgo = (lat: number, lon: number, signal?: AbortSignal) =>
-  apiGet<RiskMap>(`/api/mapa/riesgo?lat=${lat}&lon=${lon}&radioKm=15`, 'mapa-riesgo', signal, 30000)
+  persistedGet<RiskMap>(`/api/mapa/riesgo?lat=${lat}&lon=${lon}&radioKm=${MAP_RADIUS_KM}`, 'mapa-riesgo', MINUTE, signal)
 
 // ---- Voz e IA (PatyController: /capacidades, /voz, /tts) ----
 
@@ -220,6 +283,7 @@ let capacidades: Promise<Capacidades> | null = null
 
 /** Qué piezas de IA están activas en el servidor (se consulta una vez; si falla, se reintenta luego). */
 export function getCapacidades(): Promise<Capacidades> {
+  if (!backendAvailable()) return Promise.resolve({ ia: null, dictado: false, vozServidor: false })
   capacidades ??= api<Capacidades>('/api/paty/capacidades', { timeoutMs: 8000 }).catch(() => {
     capacidades = null
     return { ia: null, dictado: false, vozServidor: false }
@@ -228,13 +292,14 @@ export function getCapacidades(): Promise<Capacidades> {
 }
 
 export async function sendPatyVoice(audio: Blob, coords: { latitude: number; longitude: number } | null, signal?: AbortSignal) {
+  if (!backendAvailable()) throw new ApiError('Sin conexión no puedo escuchar audios. Escríbeme tu consulta y te respondo.')
   const form = new FormData()
   form.append('audio', audio, audio.type.includes('mp4') ? 'audio.mp4' : audio.type.includes('ogg') ? 'audio.ogg' : 'audio.webm')
   if (coords) {
     form.append('lat', String(coords.latitude))
     form.append('lon', String(coords.longitude))
   }
-  const res = await fetch(BASE_URL + '/api/paty/voz', { method: 'POST', body: form, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(45000)]) : AbortSignal.timeout(45000) })
+  const res = await fetch(BASE_URL + '/api/paty/voz', { method: 'POST', body: form, signal: withTimeout(signal, 45000) })
   if (!res.ok) throw new ApiError((await res.text().catch(() => '')) || `Error del servidor (${res.status}).`, res.status)
   return res.json() as Promise<{ transcripcion: string; respuesta: PatyReply }>
 }
@@ -245,7 +310,7 @@ export async function getTtsAudio(texto: string): Promise<Blob | null> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ texto }),
-    signal: AbortSignal.timeout(30000),
+    signal: timeoutSignal(30000),
   }).catch(() => null)
   return res?.ok ? res.blob() : null
 }
@@ -270,10 +335,10 @@ export interface ZoneHistory {
 }
 
 export const getZoneHistory = (lat: number, lon: number, signal?: AbortSignal) =>
-  apiGet<ZoneHistory>(`/api/zonas/historial?lat=${lat}&lon=${lon}&limite=60`, 'zona-historial', signal)
+  persistedGet<ZoneHistory>(`/api/zonas/historial?lat=${lat}&lon=${lon}&limite=60`, 'zona-historial', 10 * MINUTE, signal)
 
 export const getActiveAlerts = (ubigeo: string, signal?: AbortSignal) =>
-  apiGet<Alert[]>(`/api/alertas?ubigeo=${encodeURIComponent(ubigeo)}`, `alertas-zona:${ubigeo}`, signal)
+  persistedGet<Alert[]>(`/api/alertas?ubigeo=${encodeURIComponent(ubigeo)}`, `alertas-zona:${ubigeo}`, MINUTE, signal)
 
 // ---- Estadísticas nacionales (EstadisticasController → GET /api/estadisticas) ----
 
@@ -296,4 +361,4 @@ export interface NationalStats {
 }
 
 export const getEstadisticas = (anios = 5, signal?: AbortSignal) =>
-  apiGet<NationalStats>(`/api/estadisticas?anios=${anios}`, `estadisticas:${anios}`, signal)
+  persistedGet<NationalStats>(`/api/estadisticas?anios=${anios}`, `estadisticas:${anios}`, 10 * MINUTE, signal)

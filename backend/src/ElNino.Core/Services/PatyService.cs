@@ -25,7 +25,25 @@ public partial class PatyService(
     private static readonly string[] LevelNames = ["bajo", "moderado", "alto", "muy alto"];
 
     // Palabras que indican que la persona busca un establecimiento de salud
-    private static readonly string[] CenterWords = ["posta", "hospital", "centro de salud", "clinica", "medico", "doctor", "emergencia"];
+    private static readonly string[] CenterWords =
+    [
+        "posta", "hospital", "clinica", "medico", "doctor", "emergencia",
+        "centro de salud", "centro medico", "puesto de salud", "essalud", "ambulancia", "atencion medica",
+    ];
+
+    // "¿Dónde queda el centro más cercano de ayuda?" no nombra ninguna palabra de la lista de arriba,
+    // pero es exactamente la pregunta de alguien que necesita que lo atiendan. Se detecta combinando
+    // una forma de preguntar por un lugar cercano con una palabra de sitio donde se presta ayuda.
+    private static readonly string[] NearbyWords =
+        ["cerca", "cercano", "cercana", "mas cerca", "donde queda", "donde esta", "donde hay", "donde puedo", "donde me", "como llego", "llegar a"];
+
+    private static readonly string[] HelpPlaceWords =
+        ["centro", "ayuda", "atencion", "atiendan", "atiendo", "auxilio", "socorro", "puesto", "establecimiento"];
+
+    /// <summary>¿La persona está buscando dónde la atiendan?</summary>
+    private static bool WantsCenter(string text) =>
+        CenterWords.Any(w => TextNormalizer.ContainsTerm(text, w)) ||
+        (NearbyWords.Any(w => TextNormalizer.ContainsTerm(text, w)) && HelpPlaceWords.Any(w => TextNormalizer.ContainsTerm(text, w)));
 
     // Palabras que piden información de la zona
     private static readonly string[] ZoneWords = ["mi zona", "zona", "historial", "antes paso", "siempre pasa", "aqui"];
@@ -142,7 +160,7 @@ public partial class PatyService(
             notices.Add("Para darte el pronóstico y los avisos del SENAMHI de tu zona necesito tu ubicación.");
 
         // 4) Postas cercanas (si hay ubicación y la situación lo amerita o la persona lo pide)
-        var wantsCenter = CenterWords.Any(w => TextNormalizer.ContainsTerm(text, w));
+        var wantsCenter = WantsCenter(text);
         IReadOnlyList<NearbyHealthCenter> nearest = [];
         if (req.Latitude is double lat && req.Longitude is double lon &&
             (wantsCenter || (tri.Level != TriageLevel.Leve && tri.EmergencyType == EmergencyType.Medica)))
@@ -367,6 +385,13 @@ public partial class PatyService(
             var n = nearest[0];
             sb.AppendLine($"El establecimiento de salud más cercano es {n.Center.Name}, a {n.DistanceKm:0.#} km " +
                           $"(unos {n.WalkingMinutes} minutos caminando).");
+        }
+        else if (wantsCenter)
+        {
+            // Sabemos qué quiere, pero no dónde está: se dice eso, nunca que no podemos ayudar
+            sb.AppendLine("Para decirte cuál es el establecimiento de salud más cercano necesito tu ubicación: " +
+                          "actívala y vuelve a preguntarme.");
+            sb.AppendLine($"Si es urgente, llama al {TriageService.SamuNumber} (SAMU) o al {TriageService.CentralNumber} en Lima y Callao.");
         }
 
         if (tips.Count > 0)

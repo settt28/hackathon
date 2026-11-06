@@ -6,14 +6,14 @@ import ThemeToggle from './ThemeToggle'
  * Cabecera de marca: fila superior (conexión ↔ tema) y debajo el título "PATY" centrado.
  */
 const Header: FC = () => (
-  <header className="flex flex-col items-center px-4 pt-2">
+  <header className="flex flex-col items-center px-4 pt-2 @3xl:px-8 @5xl:px-10">
     {/* Fila superior: conexión (izquierda) y tema (derecha) */}
     <div className="flex w-full items-center justify-between">
       <ConnectionChip />
       <ThemeToggle />
     </div>
 
-    <p className="mt-4 flex items-center gap-2.5 text-base font-extrabold tracking-[0.22em] text-slate-800 dark:text-cyan-300">
+    <p className="mt-4 flex items-center gap-2.5 text-base font-extrabold tracking-[0.22em] text-slate-800 dark:text-cyan-300 @5xl:mt-2 @5xl:text-xl">
       PATY
       {/* Indicadores de servicio activo */}
       <span className="flex gap-1.5" aria-label="Servicio activo">
