@@ -1,9 +1,17 @@
+import { Capacitor } from '@capacitor/core'
+
 /**
  * Cliente HTTP único del frontend.
  * En desarrollo, Vite redirige /api al backend (ver vite.config.ts), así no hay URLs fijas ni CORS.
  * En producción se define VITE_API_URL (ej. https://api.midominio.pe) si el backend vive en otro origen.
  */
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
+
+/** Dentro del APK no hay proxy de Vite: sin VITE_API_URL no hay backend al que llamar. */
+const hasBackend = BASE_URL !== '' || !Capacitor.isNativePlatform()
+
+/** ¿Vale la pena intentar llamar al backend? Si es false, ni se intenta: se evita esperar a una red que no está. */
+export const backendAvailable = () => hasBackend && navigator.onLine
 
 export class ApiError extends Error {
   readonly status?: number
@@ -71,6 +79,8 @@ export interface PatyReply {
   nearestCenters: NearbyHealthCenter[]
   actions: PatyAction[]
   usedAi: boolean
+  /** Respondió el teléfono, sin backend (ver lib/paty/engine.ts). */
+  offline?: boolean
 }
 
 export interface PatyRequest {
@@ -79,8 +89,8 @@ export interface PatyRequest {
   longitude?: number
 }
 
-export const sendPatyMessage = (req: PatyRequest, signal?: AbortSignal) =>
-  api<PatyReply>('/api/paty/chat', { method: 'POST', body: JSON.stringify(req), signal, timeoutMs: 30000 })
+export const sendPatyMessage = (req: PatyRequest, signal?: AbortSignal, timeoutMs = 30000) =>
+  api<PatyReply>('/api/paty/chat', { method: 'POST', body: JSON.stringify(req), signal, timeoutMs })
 
 // ---- Alertas y consejos por dominio (ElNino.API/Controllers/DomainControllerBase.cs) ----
 
@@ -176,6 +186,7 @@ let capacidades: Promise<Capacidades> | null = null
 
 /** Qué piezas de IA están activas en el servidor (se consulta una vez; si falla, se reintenta luego). */
 export function getCapacidades(): Promise<Capacidades> {
+  if (!backendAvailable()) return Promise.resolve({ ia: null, dictado: false, vozServidor: false })
   capacidades ??= api<Capacidades>('/api/paty/capacidades', { timeoutMs: 8000 }).catch(() => {
     capacidades = null
     return { ia: null, dictado: false, vozServidor: false }
@@ -184,6 +195,7 @@ export function getCapacidades(): Promise<Capacidades> {
 }
 
 export async function sendPatyVoice(audio: Blob, coords: { latitude: number; longitude: number } | null, signal?: AbortSignal) {
+  if (!backendAvailable()) throw new ApiError('Sin conexión no puedo escuchar audios. Escríbeme tu consulta y te respondo.')
   const form = new FormData()
   form.append('audio', audio, audio.type.includes('mp4') ? 'audio.mp4' : audio.type.includes('ogg') ? 'audio.ogg' : 'audio.webm')
   if (coords) {

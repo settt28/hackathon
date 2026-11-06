@@ -1,10 +1,41 @@
 # Paty en Android (APK)
 
-Guía para el proyecto Android que envuelve la app web (WebView, Capacitor o TWA). La app web ya está preparada:
-pantalla completa, colores de la barra de estado, reintento de ubicación y voz. Lo de abajo va **en el proyecto
-Android**, que no está en este repositorio.
+El proyecto Android está en `frontend/android` (Capacitor). Para generar el APK de prueba:
 
-> Los fragmentos son de referencia: no se probaron en un proyecto Android real. Revisa los nombres de tus clases.
+```bash
+cd frontend
+npm run apk   # → android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Sin `VITE_API_URL`, el APK no tiene backend: Paty siempre responde en modo sin conexión. Para usar la IA, compila con
+`VITE_API_URL` (ver la sección 2).
+
+## Paty con y sin internet
+
+Las respuestas siempre llegan rápido, porque el teléfono lleva su propia Paty (`frontend/src/lib/paty/engine.ts`):
+
+| Situación | Quién responde | Tiempo máximo |
+|---|---|---|
+| Emergencia ("no respira", "hay un huaico") | El teléfono, siempre | Inmediato |
+| Sin internet, o APK sin backend | El teléfono | Menos de 1 s |
+| Con internet | El backend, con IA si está configurada | 5 s; si tarda más, responde el teléfono |
+
+Sin conexión no hay redacción con IA, alertas de hoy ni pronóstico, y Paty lo dice en vez de asegurar que no pasa
+nada. Con una IA lenta (como Ollama en un portátil), sube el límite al compilar: `VITE_PATY_TIMEOUT_MS=30000`.
+
+Los datos que lleva dentro la app los genera el backend. Vuelve a generarlos si cambian los consejos, las palabras de
+alarma, las postas o el modelo de riesgo, y si cambian las reglas de `PatyService`, actualiza también `engine.ts`:
+
+```bash
+cd backend
+dotnet run --project src/ElNino.API -- --export-offline ../../../frontend
+```
+
+## Otras formas de empaquetar
+
+Lo que sigue es de referencia para otros proyectos Android (WebView propio o TWA).
+
+> Los fragmentos no se probaron en un proyecto Android real. Revisa los nombres de tus clases.
 
 ## 1. ¿Cómo carga la app el APK?
 

@@ -14,13 +14,25 @@ function fromUrl(): Coords | null {
 
 const urlCoords = fromUrl()
 let cached: Promise<Coords | null> | null = null
+let last: Coords | null = urlCoords
+
+/** La última ubicación conocida, sin esperar nada (para emergencias). */
+export const getLastPosition = () => last
+
+/** La ubicación si llega en `ms`; si no, la última conocida. El pedido sigue en curso para la próxima consulta. */
+export function getPositionWithin(ms: number): Promise<Coords | null> {
+  return Promise.race([getPosition(), new Promise<Coords | null>((resolve) => setTimeout(() => resolve(last), ms))])
+}
 
 export function getPosition(): Promise<Coords | null> {
   if (urlCoords) return Promise.resolve(urlCoords)
   if (!('geolocation' in navigator)) return Promise.resolve(null)
   cached ??= new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude }),
+      ({ coords }) => {
+        last = { latitude: coords.latitude, longitude: coords.longitude }
+        resolve(last)
+      },
       () => {
         cached = null // permitir reintentar
         resolve(null)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MapPin, Phone, Sparkles, Square, TriangleAlert, Volume2 } from 'lucide-react'
+import { MapPin, Phone, Sparkles, Square, TriangleAlert, Volume2, WifiOff } from 'lucide-react'
 import type { ChatMessage } from '../../hooks/usePatyChat'
 import { speak, stopSpeaking } from '../../lib/speech'
 import { safeUrl } from '../../lib/url'
@@ -64,6 +64,12 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
             <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400" title="Redactado por el modelo de lenguaje con fuentes oficiales">
               <Sparkles className="h-3 w-3" aria-hidden />
               IA
+            </span>
+          )}
+          {d?.offline && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400" title="Respondido en tu teléfono con los consejos oficiales guardados">
+              <WifiOff className="h-3 w-3" aria-hidden />
+              Modo sin conexión
             </span>
           )}
         </div>
