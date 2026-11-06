@@ -48,8 +48,7 @@ const DashboardView: FC = () => {
             <AssistantCard onOpenChat={() => navigate('/paty')} onVoice={() => navigate('/paty')} />
           </div>
 
-          {/* SOS abre el marcador con Bomberos (116): huaicos, inundaciones y derrumbes */}
-          <SOSFooter onPress={() => (window.location.href = 'tel:116')} />
+          <SOSFooter onPress={() => navigate('/emergencia')} />
         </div>
       </main>
     </DeviceFrame>
