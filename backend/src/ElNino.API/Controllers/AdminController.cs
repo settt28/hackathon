@@ -45,9 +45,5 @@ public class AdminController(DataImportService importer, IConfiguration config) 
         }
     }
 
-    private bool Authorized(string? apiKey)
-    {
-        var expected = config["Operador:ApiKey"];
-        return !string.IsNullOrEmpty(expected) && apiKey == expected;
-    }
+    private bool Authorized(string? apiKey) => ApiKeys.Matches(config, "Operador:ApiKey", apiKey);
 }

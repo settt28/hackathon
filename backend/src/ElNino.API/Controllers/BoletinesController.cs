@@ -36,8 +36,7 @@ public class BoletinesController(IRepository<Bulletin> bulletins, IConfiguration
     public async Task<IActionResult> Crear([FromBody] CrearBoletinRequest req,
         [FromHeader(Name = "X-Api-Key")] string? apiKey, CancellationToken ct)
     {
-        var expected = config["Operador:ApiKey"];
-        if (string.IsNullOrEmpty(expected) || apiKey != expected)
+        if (!ApiKeys.Matches(config, "Operador:ApiKey", apiKey))
             return Unauthorized("Falta la cabecera X-Api-Key o es incorrecta.");
 
         var institution = req.Institucion.Trim().ToUpper();

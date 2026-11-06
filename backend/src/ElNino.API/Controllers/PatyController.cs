@@ -2,6 +2,7 @@ using ElNino.Core.Interfaces;
 using ElNino.Core.Models;
 using ElNino.Core.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ElNino.API.Controllers;
 
@@ -22,6 +23,7 @@ public class PatyController(
     /// Envía un mensaje a Paty. Devuelve la respuesta, el triaje (con número a llamar si es grave),
     /// los consejos usados, advertencias del historial de la zona, postas cercanas y botones de acción.
     /// </summary>
+    [EnableRateLimiting(RateLimits.Ai)]
     [HttpPost("chat")]
     public async Task<IActionResult> Chat([FromBody] PatyRequest req, CancellationToken ct)
     {
@@ -37,6 +39,7 @@ public class PatyController(
     /// Mensaje de voz: el audio (webm/ogg/mp3/wav, máx. 10 MB) se transcribe con Whisper y se responde como en /chat.
     /// 503 si el dictado no está configurado (sección "Ai:Stt").
     /// </summary>
+    [EnableRateLimiting(RateLimits.Ai)]
     [HttpPost("voz")]
     [RequestSizeLimit(10_000_000)]
     public async Task<IActionResult> Voz(IFormFile audio, [FromForm] double? lat, [FromForm] double? lon, CancellationToken ct)
@@ -56,6 +59,7 @@ public class PatyController(
     }
 
     /// <summary>Lee un texto en voz alta (MP3, Fish Audio). 503 si no está configurado: el navegador usa su propia voz.</summary>
+    [EnableRateLimiting(RateLimits.Ai)]
     [HttpPost("tts")]
     public async Task<IActionResult> Tts([FromBody] TtsRequest req, CancellationToken ct)
     {

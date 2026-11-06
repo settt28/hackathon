@@ -31,6 +31,9 @@ public class SyncController(
         [FromQuery] string? ubigeo, [FromQuery] double? lat, [FromQuery] double? lon,
         [FromQuery] double radioKm = 30, CancellationToken ct = default)
     {
+        if (lat is < -90 or > 90 || lon is < -180 or > 180) return BadRequest("Coordenadas inválidas.");
+        radioKm = Math.Clamp(radioKm, 1, 100); // sin tope, un radio enorme devolvía todas las postas del país
+
         // Distrito: el ubigeo enviado manda; si no, se deduce del GPS
         DistrictLocation? ubicacion = null;
         if (string.IsNullOrWhiteSpace(ubigeo) && lat is double gLat && lon is double gLon)
@@ -42,7 +45,14 @@ public class SyncController(
 
         IEnumerable<HealthCenter> centros;
         if (lat is double la && lon is double lo)
-            centros = (await centers.GetAllAsync(ct)).Where(c => GeoUtils.HaversineKm(la, lo, c.Latitude, c.Longitude) <= radioKm);
+        {
+            // Primero un rectángulo en la base de datos (usa índices, no carga todo el país); luego la distancia exacta
+            var dLat = radioKm / 111.0;
+            var dLon = radioKm / (111.0 * Math.Max(0.2, Math.Cos(la * Math.PI / 180)));
+            centros = (await centers.ListAsync(c =>
+                    c.Latitude >= la - dLat && c.Latitude <= la + dLat && c.Longitude >= lo - dLon && c.Longitude <= lo + dLon, ct))
+                .Where(c => GeoUtils.HaversineKm(la, lo, c.Latitude, c.Longitude) <= radioKm);
+        }
         else if (!string.IsNullOrWhiteSpace(ubigeo))
             centros = await centers.ListAsync(c => c.Ubigeo == ubigeo, ct);
         else

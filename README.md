@@ -77,3 +77,10 @@ curl -X POST "http://localhost:5261/api/sms/entrante?key=demo-sms-2026" -d "from
 ```
 
 Clave en `Sms:ApiKey`. Las llamadas de voz por Asterisk están pendientes (requieren el gateway y la centralita).
+
+## Seguridad (antes de desplegar)
+
+- **Claves:** `Operador:ApiKey` y `Sms:ApiKey` solo tienen valores de demo en `appsettings.Development.json`. En producción, defínelas por variables de entorno (`Operador__ApiKey`, `Sms__ApiKey`); sin clave configurada, esos endpoints rechazan todo.
+- **CORS:** pon el dominio real del frontend en `Cors:Origins` (lista).
+- **Límite de peticiones por IP:** 20/min en chat, voz y lectura (usan IA de pago), 120/min en SMS y 300/min en el resto. Detrás de un proxy inverso hay que activar `ForwardedHeaders` para ver la IP real.
+- Cuerpo máximo de 1 MB por petición (10 MB para mensajes de voz). Respuestas comprimidas con Brotli/Gzip.

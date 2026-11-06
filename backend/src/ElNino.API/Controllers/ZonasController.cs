@@ -20,7 +20,10 @@ public class ZonasController(ZoneHistoryService history, DistrictService distric
     /// </summary>
     [HttpGet("{ubigeo}/historial")]
     public async Task<IActionResult> GetHistorial(string ubigeo, [FromQuery] int limite = 30, CancellationToken ct = default) =>
-        Ok(await history.GetSummaryAsync(ubigeo, maxEvents: limite, ct: ct));
+        Ok(await history.GetSummaryAsync(ubigeo, maxEvents: Math.Clamp(limite, 0, MaxEvents), ct: ct));
+
+    // Tope de eventos por respuesta: el patrón siempre usa todo el historial, la lista es solo para mostrar
+    private const int MaxEvents = 200;
 
     /// <summary>
     /// Historial de donde está la persona: ubica el GPS en su distrito y devuelve su historial.
@@ -30,9 +33,10 @@ public class ZonasController(ZoneHistoryService history, DistrictService distric
     public async Task<IActionResult> GetHistorialPorUbicacion([FromQuery] double lat, [FromQuery] double lon,
         [FromQuery] int limite = 30, CancellationToken ct = default)
     {
+        if (lat is < -90 or > 90 || lon is < -180 or > 180) return BadRequest("Coordenadas inválidas.");
         var location = await districts.LocateAsync(lat, lon, ct);
         if (location is null) return NotFound("La ubicación no corresponde a ningún distrito del Perú registrado.");
-        return Ok(new { ubicacion = location, historial = await history.GetSummaryAsync(location.Ubigeo, maxEvents: limite, ct: ct) });
+        return Ok(new { ubicacion = location, historial = await history.GetSummaryAsync(location.Ubigeo, maxEvents: Math.Clamp(limite, 0, MaxEvents), ct: ct) });
     }
 
     /// <summary>Zonas de riesgo y zonas seguras del distrito (GeoJSON para pintar en el mapa).</summary>

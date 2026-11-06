@@ -1,11 +1,17 @@
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
+using ElNino.API;
 using ElNino.Core.Services;
+using Microsoft.AspNetCore.ResponseCompression;
 using ElNino.Infrastructure;
 using ElNino.Infrastructure.Ai;
 using ElNino.Infrastructure.Import;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Ninguna petición necesita más de 1 MB salvo los mensajes de voz (10 MB, ver PatyController.Voz)
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 1_000_000);
 
 // --- Servicios ---
 builder.Services.AddControllers()
@@ -53,10 +59,42 @@ builder.Services.AddScoped<MapService>();
 builder.Services.AddScoped<RiskMapService>();
 builder.Services.AddScoped<RiskModelService>();
 
-// CORS para el frontend de Vite (dev y preview, que se usa para probar la PWA)
+// CORS: orígenes del frontend en "Cors:Origins" (por defecto, Vite en dev y preview)
 const string FrontendCors = "Frontend";
-builder.Services.AddCors(o => o.AddPolicy(FrontendCors, p =>
-    p.WithOrigins("http://localhost:5173", "http://localhost:4173").AllowAnyHeader().AllowAnyMethod()));
+var origins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:5173", "http://localhost:4173"];
+builder.Services.AddCors(o => o.AddPolicy(FrontendCors, p => p.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod()));
+
+// Respuestas comprimidas: el GeoJSON del mapa baja ~5-10 veces, clave en redes 2G/3G
+builder.Services.AddResponseCompression(o =>
+{
+    o.EnableForHttps = true; // las respuestas no reflejan secretos, así que no aplica BREACH
+    o.Providers.Add<BrotliCompressionProvider>();
+    o.Providers.Add<GzipCompressionProvider>();
+    o.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(["application/geo+json"]);
+});
+
+// Límite de peticiones por IP: protege la cuota de la IA (Groq/Fish Audio cobran por uso) y la base de datos.
+// ponytail: detrás de un proxy inverso todas las peticiones llegan con su IP; activar ForwardedHeaders al desplegar así.
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.OnRejected = async (ctx, ct) =>
+    {
+        if (ctx.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retry))
+            ctx.HttpContext.Response.Headers.RetryAfter = ((int)retry.TotalSeconds).ToString();
+        await ctx.HttpContext.Response.WriteAsync("Demasiadas consultas seguidas. Espera un momento e intenta de nuevo.", ct);
+    };
+    static string Ip(HttpContext c) => c.Connection.RemoteIpAddress?.ToString() ?? "desconocida";
+    static RateLimitPartition<string> PerIp(HttpContext c, int perMinute) =>
+        RateLimitPartition.GetFixedWindowLimiter(Ip(c), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = perMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0,
+        });
+
+    o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(c => PerIp(c, 300));
+    o.AddPolicy(RateLimits.Ai, c => PerIp(c, 20));    // chat, voz, tts: cada consulta puede llamar a un modelo de pago
+    o.AddPolicy(RateLimits.Sms, c => PerIp(c, 120));  // el gateway GSM reenvía los SMS de muchas personas desde una IP
+});
 
 var app = builder.Build();
 
@@ -78,8 +116,23 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();   // /scalar → probar los endpoints desde el navegador
 }
 
+app.UseResponseCompression();
+
+// Cabeceras de seguridad: la API solo devuelve datos, nunca debe mostrarse en un iframe ni interpretarse como otro tipo
+app.Use(async (ctx, next) =>
+{
+    var h = ctx.Response.Headers;
+    h.XContentTypeOptions = "nosniff";
+    h.XFrameOptions = "DENY";
+    h["Referrer-Policy"] = "no-referrer";
+    if (ctx.Request.Path.StartsWithSegments("/api"))
+        h.ContentSecurityPolicy = "default-src 'none'; frame-ancestors 'none'";
+    await next();
+});
+
 app.UseHttpsRedirection();
 app.UseCors(FrontendCors);
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 

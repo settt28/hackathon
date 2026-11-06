@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using ElNino.Core.Models;
 using ElNino.Core.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ElNino.API.Controllers;
 
@@ -18,12 +19,11 @@ public class SmsController(PatyService paty, IConfiguration config) : Controller
     /// SMS entrante. Acepta JSON o formulario con el texto en "text"/"mensaje"/"message" y el remitente en "from"/"numero".
     /// Clave en la cabecera X-Api-Key o en ?key= (muchos gateways no permiten cabeceras). Responde text/plain.
     /// </summary>
+    [EnableRateLimiting(RateLimits.Sms)]
     [HttpPost("entrante")]
     public async Task<IActionResult> Entrante([FromQuery] string? key, CancellationToken ct)
     {
-        var expected = config["Sms:ApiKey"];
-        var given = Request.Headers["X-Api-Key"].FirstOrDefault() ?? key;
-        if (string.IsNullOrEmpty(expected) || given != expected)
+        if (!ApiKeys.Matches(config, "Sms:ApiKey", Request.Headers["X-Api-Key"].FirstOrDefault() ?? key))
             return Unauthorized("Falta la clave del gateway (X-Api-Key o ?key=) o es incorrecta.");
 
         string? text;

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { MapPin, Phone, Sparkles, Square, TriangleAlert, Volume2 } from 'lucide-react'
 import type { ChatMessage } from '../../hooks/usePatyChat'
 import { speak, stopSpeaking } from '../../lib/speech'
+import { safeUrl } from '../../lib/url'
 
 /** Lee la respuesta en voz alta (Fish Audio en el servidor o la voz del navegador, sin internet). */
 function SpeakButton({ text }: { text: string }) {
@@ -74,7 +75,7 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
           {calls.map((a) => (
             <a
               key={a.value}
-              href={`tel:${a.value}`}
+              href={`tel:${a.value!.replace(/[^\d+]/g, '')}`}
               className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-semibold text-white hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
               <Phone className="h-5 w-5" aria-hidden />
@@ -119,9 +120,13 @@ export default function ChatMessageBubble({ message }: { message: ChatMessage })
           {sources.map((t, i) => (
             <span key={t.sourceUrl}>
               {i > 0 && ' · '}
-              <a href={t.sourceUrl} target="_blank" rel="noreferrer" className="underline hover:text-slate-800 dark:hover:text-slate-200">
-                {t.source}
-              </a>
+              {safeUrl(t.sourceUrl) ? (
+                <a href={safeUrl(t.sourceUrl)} target="_blank" rel="noreferrer" className="underline hover:text-slate-800 dark:hover:text-slate-200">
+                  {t.source}
+                </a>
+              ) : (
+                t.source
+              )}
             </span>
           ))}
         </p>

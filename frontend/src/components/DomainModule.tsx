@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAlertas, zonaDeAlerta } from '../hooks/useAlertas'
+import { safeUrl } from '../lib/url'
 import { getConsejos, type Alert, type AlertLevel, type Dominio, type PreventionTip, type UserLocation } from '../lib/api'
 
 // Clases completas por nivel para que Tailwind las incluya en el build
@@ -23,8 +24,8 @@ function TipItem({ tip }: { tip: PreventionTip }) {
       </ol>
       <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
         Fuente:{' '}
-        {tip.sourceUrl ? (
-          <a href={tip.sourceUrl} target="_blank" rel="noreferrer" className="underline">
+        {safeUrl(tip.sourceUrl) ? (
+          <a href={safeUrl(tip.sourceUrl)} target="_blank" rel="noreferrer" className="underline">
             {tip.source}
           </a>
         ) : (

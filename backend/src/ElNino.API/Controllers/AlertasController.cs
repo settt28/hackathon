@@ -30,8 +30,7 @@ public class AlertasController(IAlertRepository alerts, IConfiguration config) :
     public async Task<IActionResult> Crear([FromBody] CrearAlertaRequest req,
         [FromHeader(Name = "X-Api-Key")] string? apiKey, CancellationToken ct)
     {
-        var expected = config["Operador:ApiKey"];
-        if (string.IsNullOrEmpty(expected) || apiKey != expected)
+        if (!ApiKeys.Matches(config, "Operador:ApiKey", apiKey))
             return Unauthorized("Falta la cabecera X-Api-Key o es incorrecta.");
 
         var alert = new Alert
